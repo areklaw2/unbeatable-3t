@@ -32,6 +32,4 @@ That's it! Now you can play the game.
 
 ## TODO
 
-- [ ] Add wasm and Typescript front end
-- [ ] Add multiplier with webseckets
-- [ ] Add a simple chat for the players
+- [ ] Add multiplayer with websockets
