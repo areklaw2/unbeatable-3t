@@ -1,6 +1,6 @@
 use std::io;
 
-use unbeatable_3t_core::{Game, Mode, PlayerPick, State};
+use api::{Game, Mode, PlayerPick, State};
 
 fn main() {
     let mode = loop {

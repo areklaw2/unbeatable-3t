@@ -1,6 +1,6 @@
 use std::{cmp, fmt};
 
-use rand::{Rng, rngs::ThreadRng};
+use rand::{RngExt, rngs::ThreadRng};
 use thiserror::Error;
 
 pub enum Mode {

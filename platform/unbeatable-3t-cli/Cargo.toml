@@ -1,7 +1,0 @@
-[package]
-name = "unbeatable-3t-cli"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-unbeatable-3t-core = {path = "../../unbeatable-3t-core"}

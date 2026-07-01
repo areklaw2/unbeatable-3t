@@ -1,4 +1,11 @@
-[workspace] 
-members = [ "platform/unbeatable-3t-cli","unbeatable-3t-core"]
-
+[workspace]
 resolver = "3"
+
+members = ["packages/*"]
+
+[workspace.dependencies]
+dioxus = { version = "0.7.1" }
+thiserror = "2.0.12"
+
+# workspace
+api = { path = "packages/api" }
