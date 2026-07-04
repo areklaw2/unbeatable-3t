@@ -1,7 +1,6 @@
 use dioxus::prelude::*;
 
-use components::Navbar;
-use views::{Blog, Home};
+use views::Title;
 
 mod components;
 mod views;
@@ -9,16 +8,16 @@ mod views;
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-    #[layout(WebNavbar)]
     #[route("/")]
-    Home {},
-    #[route("/blog/:id")]
-    Blog { id: i32 },
+    Title {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
+const TOKENS_CSS: Asset = asset!("/assets/tokens.css");
+const THEME_CSS: Asset = asset!("/assets/dx-components-theme.css");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
+const FONT_CSS: &str =
+    "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
 
 fn main() {
     dioxus::launch(App);
@@ -26,28 +25,13 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    // Build cool things ✌️
-
     rsx! {
-        // Global app resources
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: MAIN_CSS }
-        document::Stylesheet { href: TAILWIND_CSS }
+        document::Link { rel: "stylesheet", href: FONT_CSS }
+        document::Stylesheet { href: TOKENS_CSS }
+        document::Stylesheet { href: THEME_CSS }
+        document::Stylesheet { href: MAIN_CSS }
 
-        Router::<Route> {}
-    }
-}
-
-/// A web-specific Router around the shared `Navbar` component
-/// which allows us to use the web-specific `Route` enum.
-#[component]
-fn WebNavbar() -> Element {
-    rsx! {
-        Navbar {
-            Link { to: Route::Home {}, "Home" }
-            Link { to: Route::Blog { id: 1 }, "Blog" }
-        }
-
-        Outlet::<Route> {}
+        div { class: "app-shell", Router::<Route> {} }
     }
 }

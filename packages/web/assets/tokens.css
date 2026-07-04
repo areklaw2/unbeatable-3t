@@ -1,0 +1,18 @@
+:root {
+  --paper: #efece2;
+  --ink: #1a1913;
+  --surface: #faf8f2;
+  --line: #ded9cb;
+
+  --muted: #8f8b7c;
+  --muted-strong: #57544a;
+  --placeholder: #b7b3a6;
+  --disabled: #c4c0b2;
+
+  --x: #7fa8d9;
+  --o: #e08f8f;
+
+  --radius-pill: 40px;
+
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+}
