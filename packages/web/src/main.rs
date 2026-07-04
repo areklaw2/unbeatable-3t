@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use views::Title;
+use views::{SinglePlayer, Title};
 
 mod components;
 mod views;
@@ -10,10 +10,11 @@ mod views;
 enum Route {
     #[route("/")]
     Title {},
+    #[route("/single")]
+    SinglePlayer {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
-const TOKENS_CSS: Asset = asset!("/assets/tokens.css");
 const THEME_CSS: Asset = asset!("/assets/dx-components-theme.css");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const FONT_CSS: &str =
@@ -28,7 +29,6 @@ fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: FONT_CSS }
-        document::Stylesheet { href: TOKENS_CSS }
         document::Stylesheet { href: THEME_CSS }
         document::Stylesheet { href: MAIN_CSS }
 

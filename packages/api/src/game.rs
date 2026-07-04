@@ -3,6 +3,7 @@ use std::{cmp, fmt};
 use rand::{RngExt, rngs::ThreadRng};
 use thiserror::Error;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     Easy,
     Hard,

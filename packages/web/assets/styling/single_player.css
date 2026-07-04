@@ -1,0 +1,18 @@
+.name-input {
+  margin-bottom: 32px;
+}
+
+.difficulty-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 44px;
+}
+
+.difficulty-row button {
+  flex: 1;
+}
+
+.start-button {
+  width: 100%;
+  margin-bottom: 20px;
+}

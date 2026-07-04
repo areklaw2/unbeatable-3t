@@ -124,12 +124,13 @@
 }
 
 .dx-button[data-style="primary"] {
+  border: 1.5px solid transparent;
   background-color: var(--ink);
   color: var(--paper);
 }
 
 .dx-button[data-style="primary"]:not(:disabled):hover {
-  background-color: color-mix(in oklab, var(--ink) 90%, transparent);
+  background-color: color-mix(in oklab, var(--ink) 85%, black);
 }
 
 .dx-button[data-style="secondary"] {
@@ -160,7 +161,7 @@
 }
 
 .dx-button[data-style="outline"]:not(:disabled):hover {
-  background-color: transparent;
+  background-color: var(--surface);
   color: var(--ink);
 }
 
