@@ -3,7 +3,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonVariant, Input};
-use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
+use crate::state::{APP_STATE, AppStateStoreExt};
 
 const SINGLE_PLAYER_CSS: Asset = asset!("/assets/styling/single_player.css");
 
@@ -13,7 +13,6 @@ pub fn SinglePlayer() -> Element {
     let store = APP_STATE.resolve();
     let mut name = store.name_x();
     let mut difficulty = store.difficulty();
-    let mut game_mode = store.game_mode();
 
     rsx! {
         document::Link { rel: "stylesheet", href: SINGLE_PLAYER_CSS }
@@ -49,7 +48,6 @@ pub fn SinglePlayer() -> Element {
                 class: "start-button",
                 variant: ButtonVariant::Primary,
                 onclick: move |_| {
-                    game_mode.set(GameMode::Single);
                     nav.push(Route::Game {});
                 },
                 "Start game"

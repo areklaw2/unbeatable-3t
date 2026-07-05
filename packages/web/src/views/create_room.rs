@@ -2,7 +2,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonVariant, Input};
-use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
+use crate::state::{APP_STATE, AppStateStoreExt};
 
 const CREATE_ROOM_CSS: Asset = asset!("/assets/styling/create_room.css");
 
@@ -14,7 +14,6 @@ pub fn CreateRoom() -> Element {
     let nav = use_navigator();
     let store = APP_STATE.resolve();
     let mut name = store.name_x();
-    let mut game_mode = store.game_mode();
 
     rsx! {
         document::Link { rel: "stylesheet", href: CREATE_ROOM_CSS }
@@ -51,7 +50,6 @@ pub fn CreateRoom() -> Element {
                 class: "start-button",
                 variant: ButtonVariant::Primary,
                 onclick: move |_| {
-                    game_mode.set(GameMode::Multiple);
                     nav.push(Route::Game {});
                 },
                 "Start game"

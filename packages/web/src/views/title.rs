@@ -2,12 +2,15 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonVariant};
+use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
 
 const TITLE_CSS: Asset = asset!("/assets/styling/title.css");
 
 #[component]
 pub fn Title() -> Element {
     let nav = use_navigator();
+    let store = APP_STATE.resolve();
+    let mut game_mode = store.game_mode();
 
     rsx! {
         document::Link { rel: "stylesheet", href: TITLE_CSS }
@@ -24,6 +27,7 @@ pub fn Title() -> Element {
                 Button {
                     variant: ButtonVariant::Outline,
                     onclick: move |_| {
+                        game_mode.set(GameMode::Single);
                         nav.push(Route::SinglePlayer {});
                     },
                     "Play the computer"
@@ -31,6 +35,7 @@ pub fn Title() -> Element {
                 Button {
                     variant: ButtonVariant::Outline,
                     onclick: move |_| {
+                        game_mode.set(GameMode::Multiple);
                         nav.push(Route::Multiplayer {});
                     },
                     "Play a friend"
