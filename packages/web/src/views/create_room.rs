@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
 use crate::Route;
-use crate::components::{Button, ButtonVariant, Input};
+use crate::components::Input;
 use crate::state::{APP_STATE, AppStateStoreExt};
 
 const CREATE_ROOM_CSS: Asset = asset!("/assets/styling/create_room.css");
@@ -45,15 +45,6 @@ pub fn CreateRoom() -> Element {
             }
 
             div { class: "waiting-text", "Waiting for player 2…" }
-
-            Button {
-                class: "start-button",
-                variant: ButtonVariant::Primary,
-                onclick: move |_| {
-                    nav.push(Route::Game {});
-                },
-                "Start game"
-            }
 
             button {
                 class: "back-link",
