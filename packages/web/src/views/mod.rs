@@ -12,3 +12,6 @@ pub use create_room::CreateRoom;
 
 mod join_room;
 pub use join_room::JoinRoom;
+
+mod game;
+pub use game::Game;

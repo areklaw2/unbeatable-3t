@@ -45,7 +45,14 @@ pub fn JoinRoom() -> Element {
                 }
             }
 
-            Button { class: "join-button", variant: ButtonVariant::Primary, "Join game" }
+            Button {
+                class: "join-button",
+                variant: ButtonVariant::Primary,
+                onclick: move |_| {
+                    nav.push(Route::Game { mode: "2p".to_string() });
+                },
+                "Join game"
+            }
 
             button {
                 class: "back-link",

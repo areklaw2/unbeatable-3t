@@ -44,7 +44,14 @@ pub fn CreateRoom() -> Element {
 
             div { class: "waiting-text", "Waiting for player 2…" }
 
-            Button { class: "start-button", variant: ButtonVariant::Primary, "Start game" }
+            Button {
+                class: "start-button",
+                variant: ButtonVariant::Primary,
+                onclick: move |_| {
+                    nav.push(Route::Game { mode: "2p".to_string() });
+                },
+                "Start game"
+            }
 
             button {
                 class: "back-link",

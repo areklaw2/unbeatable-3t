@@ -42,7 +42,14 @@ pub fn SinglePlayer() -> Element {
                 }
             }
 
-            Button { class: "start-button", variant: ButtonVariant::Primary, "Start game" }
+            Button {
+                class: "start-button",
+                variant: ButtonVariant::Primary,
+                onclick: move |_| {
+                    nav.push(Route::Game { mode: "1p".to_string() });
+                },
+                "Start game"
+            }
 
             button {
                 class: "back-link",

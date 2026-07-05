@@ -1,0 +1,198 @@
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+}
+
+.quit-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.14s;
+}
+
+.quit-link:hover {
+  color: var(--ink);
+}
+
+.logo-sm {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logo-sm .dot {
+  color: var(--o);
+}
+
+.turn-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-bottom: 18px;
+  height: 16px;
+}
+
+.turn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.turn-dot.mark-x {
+  background: var(--x);
+}
+
+.turn-dot.mark-o {
+  background: var(--o);
+}
+
+.turn-text {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--muted-strong);
+  font-weight: 600;
+}
+
+.board-wrap {
+  position: relative;
+  width: min(80vw, 320px);
+  margin: 0 auto;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(40px, 13vw, 58px);
+  font-weight: 700;
+  border-radius: 16px;
+  user-select: none;
+  cursor: pointer;
+  transition: all 0.12s;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+}
+
+.cell:hover {
+  transform: scale(1.04);
+}
+
+.cell.filled {
+  cursor: default;
+}
+
+.cell.filled:hover {
+  transform: none;
+}
+
+.cell.mark-x {
+  color: var(--x);
+}
+
+.cell.mark-o {
+  color: var(--o);
+}
+
+.score-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 26px;
+  margin-top: 40px;
+}
+
+.score-col {
+  text-align: center;
+}
+
+.score-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.score-value {
+  font-size: 36px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.score-col.mark-x .score-label,
+.score-col.mark-x .score-value {
+  color: var(--x);
+}
+
+.score-col.mark-tie .score-label,
+.score-col.mark-tie .score-value {
+  color: var(--muted);
+}
+
+.score-col.mark-o .score-label,
+.score-col.mark-o .score-value {
+  color: var(--o);
+}
+
+.mode-tag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.person-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.person-head {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--placeholder);
+}
+
+.person-body {
+  width: 12px;
+  height: 7px;
+  border-radius: 6px 6px 0 0;
+  background: var(--placeholder);
+}
+
+.mode-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.dx-button[data-size="sm"].undo-button,
+.dx-button[data-size="sm"].new-game-button {
+  height: auto;
+  padding: 11px 24px;
+  font-size: 13px;
+}
