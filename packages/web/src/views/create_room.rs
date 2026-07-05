@@ -9,15 +9,29 @@ use crate::state::{APP_STATE, AppStateStoreExt};
 
 const CREATE_ROOM_CSS: Asset = asset!("/assets/styling/create_room.css");
 
+fn strip_scheme(origin: &str) -> &str {
+    origin
+        .strip_prefix("https://")
+        .or_else(|| origin.strip_prefix("http://"))
+        .unwrap_or(origin)
+}
+
 #[component]
 pub fn CreateRoom() -> Element {
     let nav = use_navigator();
     let store = APP_STATE.resolve();
     let mut name = store.name_x();
     let mut room_code = use_signal(|| None::<String>);
+    let mut origin = use_signal(|| None::<String>);
 
     let mut socket =
         use_websocket(move || create_room_ws(Some(name.peek().clone()), WebSocketOptions::new()));
+
+    use_effect(move || {
+        if let Some(loc) = web_sys::window().and_then(|w| w.location().origin().ok()) {
+            origin.set(Some(loc));
+        }
+    });
 
     use_effect(move || {
         let current_name = name.cloned();
@@ -77,7 +91,9 @@ pub fn CreateRoom() -> Element {
 
             div { class: "section-label", "SHAREABLE LINK" }
             div { class: "share-link-row",
-                span { class: "share-link-text", "unbeatable3t.gg/#{room_code().unwrap_or_default()}" }
+                span { class: "share-link-text",
+                    "{origin().as_deref().map(strip_scheme).unwrap_or_default()}/{room_code().unwrap_or_default()}"
+                }
                 button { class: "copy-button", "Copy" }
             }
 

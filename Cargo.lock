@@ -3851,6 +3851,7 @@ dependencies = [
  "dioxus-primitives",
  "gloo-storage",
  "serde",
+ "web-sys",
 ]
 
 [[package]]
