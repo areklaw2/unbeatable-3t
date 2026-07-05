@@ -9,3 +9,6 @@ pub use multiplayer::Multiplayer;
 
 mod create_room;
 pub use create_room::CreateRoom;
+
+mod join_room;
+pub use join_room::JoinRoom;

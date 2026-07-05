@@ -1,0 +1,22 @@
+.code-input {
+  margin-bottom: 30px;
+}
+
+.code-input input {
+  border-radius: 16px;
+  color: var(--x);
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 16px;
+  padding: 16px 0 16px 16px;
+}
+
+.name-input {
+  margin-bottom: 44px;
+}
+
+.join-button {
+  width: 100%;
+}

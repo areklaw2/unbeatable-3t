@@ -24,7 +24,13 @@ pub fn Multiplayer() -> Element {
                     },
                     "Create a room"
                 }
-                Button { variant: ButtonVariant::Outline, "Join with a code" }
+                Button {
+                    variant: ButtonVariant::Outline,
+                    onclick: move |_| {
+                        nav.push(Route::JoinRoom {});
+                    },
+                    "Join with a code"
+                }
             }
 
             button {

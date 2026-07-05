@@ -7,6 +7,7 @@ struct Styles;
 
 #[derive(Copy, Clone, PartialEq, Default)]
 #[non_exhaustive]
+#[allow(unused)]
 pub enum ButtonVariant {
     #[default]
     Primary,
@@ -32,6 +33,7 @@ impl ButtonVariant {
 
 #[derive(Copy, Clone, PartialEq, Default)]
 #[non_exhaustive]
+#[allow(unused)]
 pub enum ButtonSize {
     Xs,
     Sm,
