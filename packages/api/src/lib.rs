@@ -93,13 +93,13 @@ pub async fn create_room_ws(
 #[get("/api/join_room_ws?room_id&name")]
 pub async fn join_room_ws(
     room_id: String,
-    name: String,
+    name: Option<String>,
     options: WebSocketOptions,
 ) -> Result<Websocket<ClientEvent, ServerEvent, CborEncoding>> {
     Ok(options.on_upgrade(move |mut socket| async move {
         let (player_sender, mut player_reciever) = mpsc::unbounded_channel::<ServerEvent>();
         let player_o_id = Ulid::new().to_string();
-        let player_o = Player::new(player_o_id.clone(), Some(name), player_sender);
+        let player_o = Player::new(player_o_id.clone(), name, player_sender);
 
         let found = {
             let mut rooms = ROOMS.lock().unwrap_or_else(|p| p.into_inner());
@@ -136,6 +136,7 @@ pub async fn join_room_ws(
                 incoming = socket.recv() => {
                     match incoming {
                         Ok(ClientEvent::SetName(new_name)) => {
+                            info!("new_name");
                             let mut rooms = ROOMS.lock().unwrap_or_else(|p| p.into_inner());
                             if let Some(room) = rooms.get_mut(&room_id) {
                                 if let Some(player_o) = room.player_o.as_mut() {

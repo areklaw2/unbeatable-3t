@@ -92,7 +92,7 @@ pub fn CreateRoom() -> Element {
             div { class: "section-label", "SHAREABLE LINK" }
             div { class: "share-link-row",
                 span { class: "share-link-text",
-                    "{origin().as_deref().map(strip_scheme).unwrap_or_default()}/{room_code().unwrap_or_default()}"
+                    "{origin().as_deref().map(strip_scheme).unwrap_or_default()}/join-room?code={room_code().unwrap_or_default()}"
                 }
                 button { class: "copy-button", "Copy" }
             }

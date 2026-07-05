@@ -16,8 +16,8 @@ enum Route {
     Multiplayer {},
     #[route("/create-room")]
     CreateRoom {},
-    #[route("/join-room")]
-    JoinRoom {},
+    #[route("/join-room?:code")]
+    JoinRoom { code: Option<String> },
     #[route("/game")]
     Game {},
 }
