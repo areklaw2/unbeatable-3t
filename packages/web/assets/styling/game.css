@@ -83,7 +83,7 @@
   border-radius: 16px;
   user-select: none;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: transform 0.12s, background-color 0.12s, border-color 0.12s;
   background: var(--surface);
   border: 1.5px solid var(--line);
 }
