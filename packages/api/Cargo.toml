@@ -5,8 +5,12 @@ edition = "2024"
 
 [dependencies]
 dioxus = { workspace = true, features = ["fullstack"] }
-rand = { version = "0.10.1", features = ["thread_rng"]}
+rand = { version = "0.10.1", features = ["thread_rng"],  optional = true}
 thiserror = { workspace = true }
+serde = { workspace = true }
+ulid = { version = "1.2.1", optional = true }
+anyhow = { workspace = true }
+tokio = { version = "1.52.3", features = ["sync"], optional = true }
 
 [features]
-server = ["dioxus/server"]
+server = ["dioxus/server", "dep:ulid", "dep:rand", "dep:tokio"]

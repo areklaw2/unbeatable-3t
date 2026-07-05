@@ -29,6 +29,7 @@ const FONT_CSS: &str =
     "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap";
 
 fn main() {
+    dioxus::logger::initialize_default();
     dioxus::launch(App);
 }
 

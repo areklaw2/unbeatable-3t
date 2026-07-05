@@ -6,8 +6,8 @@ members = ["packages/*"]
 [workspace.dependencies]
 dioxus = { version = "0.7.1" }
 thiserror = "2.0.18"
+anyhow = "1.0.103"
 serde = { version = "1.0.228", features = ["derive"] }
-ulid = "1.2.1"
 
 # workspace
 api = { path = "packages/api" }
