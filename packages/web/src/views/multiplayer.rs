@@ -17,7 +17,13 @@ pub fn Multiplayer() -> Element {
             div { class: "subtitle", "Play with a friend on another device." }
 
             div { class: "mp-actions",
-                Button { variant: ButtonVariant::Primary, "Create a room" }
+                Button {
+                    variant: ButtonVariant::Primary,
+                    onclick: move |_| {
+                        nav.push(Route::CreateRoom {});
+                    },
+                    "Create a room"
+                }
                 Button { variant: ButtonVariant::Outline, "Join with a code" }
             }
 

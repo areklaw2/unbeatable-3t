@@ -6,3 +6,6 @@ pub use single_player::SinglePlayer;
 
 mod multiplayer;
 pub use multiplayer::Multiplayer;
+
+mod create_room;
+pub use create_room::CreateRoom;

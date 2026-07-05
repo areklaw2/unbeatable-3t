@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use views::{Multiplayer, SinglePlayer, Title};
+use views::{CreateRoom, Multiplayer, SinglePlayer, Title};
 
 mod components;
 mod views;
@@ -10,10 +10,12 @@ mod views;
 enum Route {
     #[route("/")]
     Title {},
-    #[route("/single")]
+    #[route("/single-player")]
     SinglePlayer {},
     #[route("/multiplayer")]
     Multiplayer {},
+    #[route("/create-room")]
+    CreateRoom {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
