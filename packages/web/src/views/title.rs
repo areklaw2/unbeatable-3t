@@ -23,10 +23,18 @@ pub fn Title() -> Element {
             div { class: "title-actions",
                 Button {
                     variant: ButtonVariant::Outline,
-                    onclick: move |_| { nav.push(Route::SinglePlayer {}); },
+                    onclick: move |_| {
+                        nav.push(Route::SinglePlayer {});
+                    },
                     "Play the computer"
                 }
-                Button { variant: ButtonVariant::Outline, "Play a friend" }
+                Button {
+                    variant: ButtonVariant::Outline,
+                    onclick: move |_| {
+                        nav.push(Route::Multiplayer {});
+                    },
+                    "Play a friend"
+                }
             }
 
             div { class: "footer-mark",
