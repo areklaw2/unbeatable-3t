@@ -3,14 +3,17 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonVariant, Input};
+use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
 
 const SINGLE_PLAYER_CSS: Asset = asset!("/assets/styling/single_player.css");
 
 #[component]
 pub fn SinglePlayer() -> Element {
     let nav = use_navigator();
-    let mut name = use_signal(String::new);
-    let mut difficulty = use_signal(|| Mode::Easy);
+    let store = APP_STATE.resolve();
+    let mut name = store.name_x();
+    let mut difficulty = store.difficulty();
+    let mut game_mode = store.game_mode();
 
     rsx! {
         document::Link { rel: "stylesheet", href: SINGLE_PLAYER_CSS }
@@ -31,12 +34,12 @@ pub fn SinglePlayer() -> Element {
             div { class: "section-label", "DIFFICULTY" }
             div { class: "difficulty-row",
                 Button {
-                    variant: if difficulty() == Mode::Easy { ButtonVariant::Primary } else { ButtonVariant::Outline },
+                    variant: if difficulty.cloned() == Mode::Easy { ButtonVariant::Primary } else { ButtonVariant::Outline },
                     onclick: move |_| difficulty.set(Mode::Easy),
                     "Easy"
                 }
                 Button {
-                    variant: if difficulty() == Mode::Hard { ButtonVariant::Primary } else { ButtonVariant::Outline },
+                    variant: if difficulty.cloned() == Mode::Hard { ButtonVariant::Primary } else { ButtonVariant::Outline },
                     onclick: move |_| difficulty.set(Mode::Hard),
                     "Unbeatable"
                 }
@@ -46,7 +49,8 @@ pub fn SinglePlayer() -> Element {
                 class: "start-button",
                 variant: ButtonVariant::Primary,
                 onclick: move |_| {
-                    nav.push(Route::Game { mode: "1p".to_string() });
+                    game_mode.set(GameMode::Single);
+                    nav.push(Route::Game {});
                 },
                 "Start game"
             }

@@ -3,10 +3,10 @@ use dioxus::prelude::*;
 use views::{CreateRoom, Game, JoinRoom, Multiplayer, SinglePlayer, Title};
 
 mod components;
+mod state;
 mod views;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
-#[rustfmt::skip]
 enum Route {
     #[route("/")]
     Title {},
@@ -18,8 +18,8 @@ enum Route {
     CreateRoom {},
     #[route("/join-room")]
     JoinRoom {},
-    #[route("/game/:mode")]
-    Game { mode: String },
+    #[route("/game")]
+    Game {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");

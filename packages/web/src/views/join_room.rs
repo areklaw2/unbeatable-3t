@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonVariant, Input};
+use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
 
 const JOIN_ROOM_CSS: Asset = asset!("/assets/styling/join_room.css");
 
@@ -17,7 +18,9 @@ fn sanitize_code(raw: &str) -> String {
 pub fn JoinRoom() -> Element {
     let nav = use_navigator();
     let mut code = use_signal(String::new);
-    let mut name = use_signal(String::new);
+    let store = APP_STATE.resolve();
+    let mut name = store.name_o();
+    let mut game_mode = store.game_mode();
 
     rsx! {
         document::Link { rel: "stylesheet", href: JOIN_ROOM_CSS }
@@ -49,7 +52,8 @@ pub fn JoinRoom() -> Element {
                 class: "join-button",
                 variant: ButtonVariant::Primary,
                 onclick: move |_| {
-                    nav.push(Route::Game { mode: "2p".to_string() });
+                    game_mode.set(GameMode::Multiple);
+                    nav.push(Route::Game {});
                 },
                 "Join game"
             }

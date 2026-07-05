@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 use crate::Route;
 use crate::components::{Button, ButtonSize, ButtonVariant};
+use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
 
 const GAME_CSS: Asset = asset!("/assets/styling/game.css");
 
@@ -35,11 +36,36 @@ impl Mark {
 }
 
 #[component]
-pub fn Game(mode: String) -> Element {
+pub fn Game() -> Element {
     let nav = use_navigator();
     let mut board = use_signal(|| [None::<Mark>; 9]);
     let mut turn = use_signal(|| Mark::X);
-    let mode_label = if mode == "2p" { "2P" } else { "1P" };
+
+    let store = APP_STATE.resolve();
+    let game_mode = store.game_mode();
+    let name_x = store.name_x();
+    let name_o = store.name_o();
+
+    let is_single = game_mode.cloned() == GameMode::Single;
+    let mode_label = if is_single { "1P" } else { "2P" };
+    let label_x = {
+        let value = name_x.cloned();
+        if value.is_empty() {
+            "Player".to_string()
+        } else {
+            value
+        }
+    };
+    let label_o = if is_single {
+        "Computer".to_string()
+    } else {
+        let value = name_o.cloned();
+        if value.is_empty() {
+            "Player 2".to_string()
+        } else {
+            value
+        }
+    };
 
     rsx! {
         document::Link { rel: "stylesheet", href: GAME_CSS }
@@ -85,7 +111,7 @@ pub fn Game(mode: String) -> Element {
 
             div { class: "score-row",
                 div { class: "score-col mark-x",
-                    div { class: "score-label", "Player · X" }
+                    div { class: "score-label", "{label_x} · X" }
                     div { class: "score-value", "0" }
                 }
                 div { class: "score-col mark-tie",
@@ -93,7 +119,7 @@ pub fn Game(mode: String) -> Element {
                     div { class: "score-value", "0" }
                 }
                 div { class: "score-col mark-o",
-                    div { class: "score-label", "Player · O" }
+                    div { class: "score-label", "{label_o} · O" }
                     div { class: "score-value", "0" }
                 }
                 div { class: "mode-tag",
