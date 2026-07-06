@@ -45,9 +45,14 @@ pub fn JoinRoom(code: Option<String>) -> Element {
                 };
 
             match socket.recv().await {
-                Ok(ServerEvent::RoomJoined { player_o_id, .. }) => {
+                Ok(ServerEvent::RoomJoined {
+                    player_o_id,
+                    room_id,
+                }) => {
                     let _ = LocalStorage::set("player_id", player_o_id);
-                    nav.push(Route::Game {});
+                    nav.push(Route::Game {
+                        room_id: Some(room_id),
+                    });
                 }
                 Ok(ServerEvent::RoomNotFound) => {
                     error.set(Some("Room not found.".to_string()));

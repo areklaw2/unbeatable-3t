@@ -48,7 +48,7 @@ pub fn SinglePlayer() -> Element {
                 class: "start-button",
                 variant: ButtonVariant::Primary,
                 onclick: move |_| {
-                    nav.push(Route::Game {});
+                    nav.push(Route::Game { room_id: None });
                 },
                 "Start game"
             }

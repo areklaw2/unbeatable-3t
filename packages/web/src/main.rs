@@ -18,8 +18,8 @@ enum Route {
     CreateRoom {},
     #[route("/join-room?:code")]
     JoinRoom { code: Option<String> },
-    #[route("/game")]
-    Game {},
+    #[route("/game?:room_id")]
+    Game { room_id: Option<String> },
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");

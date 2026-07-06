@@ -54,7 +54,9 @@ pub fn CreateRoom() -> Element {
                         room_code.set(Some(room_id));
                     }
                     ServerEvent::PlayerJoined { .. } => {
-                        nav.push(Route::Game {});
+                        nav.push(Route::Game {
+                            room_id: room_code.peek().clone(),
+                        });
                     }
                     _ => {}
                 }
