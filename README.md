@@ -1,35 +1,66 @@
 # Unbeatable 3T
 
-An unbeatable Tic-Tac-Toe game that uses the [Minimax Algorithm](https://en.wikipedia.org/wiki/Minimax)
+Tic-tac-toe with a CPU that never loses. The Hard-mode opponent uses the
+[Minimax algorithm](https://en.wikipedia.org/wiki/Minimax) to play perfectly the best you can do is force a tie. Play it in the browser (solo or online
+against a friend) or in the terminal.
+
+## Features
+
+- **Unbeatable CPU** — Hard mode runs a full minimax search; Easy mode plays random moves.
+- **Single player** — play against the CPU in the web app or the CLI.
+- **Online multiplayer** — create a room, share the 4-character room code, and a
+  friend joins from another device. Games run over websockets and include:
+  - reconnect support if a player drops and rejoins
+  - opponent-disconnect notices
+  - a rematch handshake after a finished game
+  - server-side cleanup of abandoned rooms (empty rooms expire after 5 minutes)
+
+## Workspace layout
+
+This is a Cargo workspace with three packages under `packages/`:
+
+| Package | Description                                                                                                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `api`   | Shared crate. `api::engine` is a dependency-free, wasm-safe game engine (board logic, win detection, minimax CPU). Server-only code — room registry, websocket endpoints — sits behind the `server` feature. |
+| `web`   | [Dioxus](https://dioxuslabs.com/) fullstack web app: UI, routing, and the multiplayer client.                                                                                                                |
+| `cli`   | Interactive terminal game: pick your mark, then play against the CPU.                                                                                                                                        |
 
 ## Prerequisites
 
-Make sure you have Rust installed on your system. If you don't have Rust installed, you can download it from [here](https://www.rust-lang.org/tools/install).
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Dioxus CLI](https://dioxuslabs.com/learn/0.7/getting_started/) (`dx`) — only for web development
+- [just](https://github.com/casey/just) and [Docker](https://www.docker.com/) — optional, for the containerized web app
 
-## Getting Started
+## Running
 
-### Run in command line
+### Web (dev)
 
-Clone the repository:
-
-```bash
-git clone git@github.com:aowalke2/unbeatable-3t.git
-```
-
-Navigate to the cli platform:
+From the repo root:
 
 ```bash
-cd unbeatable-3t/platform/unbeatable-3t-cli
+dx serve --package web
 ```
 
-Run the application:
+### Web (Docker)
+
+The `justfile` wraps the Docker workflow. The image bundles the web app with
+`dx bundle` and serves it on port 8080:
 
 ```bash
-  cargo run
+just build   # build the Docker image
+just run     # run the container on http://localhost:8080 (Ctrl+C to stop)
+just logs    # tail container logs
+just stop    # stop the running container
 ```
 
-That's it! Now you can play the game.
+### CLI
 
-## TODO
+```bash
+cargo run -p cli
+```
 
-- [ ] room cleanup/TTL, opponent-disconnect notice, rematch
+### Tests
+
+```bash
+cargo test -p api --features server
+```

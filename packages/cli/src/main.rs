@@ -1,86 +1,124 @@
-// use std::io;
+use std::io::{self, BufRead, Write};
+use std::process;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-// use api::{Game, Mode, PlayerPick, State};
+use api::engine::{self, Board};
+use api::{Mark, Mode};
 
 fn main() {
-    todo!("Build cli")
+    let stdin = io::stdin();
+    let mut lines = stdin.lock().lines();
+
+    let mode = loop {
+        prompt("Select mode (easy/hard): ");
+        match read_line(&mut lines).trim().to_lowercase().as_str() {
+            "easy" => break Mode::Easy,
+            "hard" => break Mode::Hard,
+            _ => println!("Enter easy or hard."),
+        }
+    };
+
+    let human = loop {
+        prompt("Select your mark (X/O): ");
+        match read_line(&mut lines).trim().to_uppercase().as_str() {
+            "X" => break Mark::X,
+            "O" => break Mark::O,
+            _ => println!("Enter X or O."),
+        }
+    };
+
+    println!(
+        "You are {}, CPU is {}.",
+        human.label(),
+        human.other().label()
+    );
+
+    let mut board: Board = [None; 9];
+    let mut rng = seed();
+
+    if human == Mark::O {
+        let opening = match mode {
+            Mode::Easy => xorshift(&mut rng) as usize % 9,
+            Mode::Hard => 4,
+        };
+        board[opening] = Some(Mark::X);
+        println!("CPU (X) opens.");
+    }
+
+    loop {
+        render(&board);
+        let cell = loop {
+            let row = read_coord(&mut lines, "Row (0-2): ");
+            let col = read_coord(&mut lines, "Col (0-2): ");
+            let cell = row * 3 + col;
+            if board[cell].is_some() {
+                println!("That cell is taken.");
+            } else {
+                break cell;
+            }
+        };
+
+        engine::play_vs_cpu(&mut board, cell, human, mode, &mut rng);
+
+        if let Some(w) = engine::winner(&board) {
+            render(&board);
+            if w == human {
+                println!("You win!");
+            } else {
+                println!("CPU wins!");
+            }
+            break;
+        }
+        if engine::is_full(&board) {
+            render(&board);
+            println!("Draw!");
+            break;
+        }
+    }
 }
 
-// fn main() {
-//     let mode = loop {
-//         println!("Select mode Easy or Hard");
-//         let mut mode_input_line = String::new();
-//         io::stdin()
-//             .read_line(&mut mode_input_line)
-//             .expect("Failed to read");
+fn seed() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(1)
+        .max(1)
+}
 
-//         let mode = mode_input_line.trim().to_lowercase();
-//         match Mode::try_from(mode.as_str()) {
-//             Ok(mode) => break mode,
-//             Err(e) => println!("{}", e),
-//         }
-//     };
+fn xorshift(state: &mut u64) -> u64 {
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state
+}
 
-//     let player_pick = loop {
-//         println!("Select X or O");
-//         let mut player_pick_input_line = String::new();
-//         io::stdin()
-//             .read_line(&mut player_pick_input_line)
-//             .expect("Failed to read");
+fn prompt(text: &str) {
+    print!("{text}");
+    io::stdout().flush().expect("Failed to flush stdout");
+}
 
-//         let player_pick = player_pick_input_line.trim().to_uppercase();
-//         match PlayerPick::try_from(player_pick.as_str()) {
-//             Ok(mode) => break mode,
-//             Err(e) => println!("{}", e),
-//         }
-//     };
+fn read_line(lines: &mut impl Iterator<Item = io::Result<String>>) -> String {
+    match lines.next() {
+        Some(line) => line.expect("Failed to read input"),
+        None => process::exit(0),
+    }
+}
 
-//     let mut game = Game::new(mode, player_pick);
-//     loop {
-//         println!("{}", game);
+fn read_coord(lines: &mut impl Iterator<Item = io::Result<String>>, label: &str) -> usize {
+    loop {
+        prompt(label);
+        match read_line(lines).trim().parse::<usize>() {
+            Ok(n) if n <= 2 => break n,
+            _ => println!("Enter a number from 0 to 2."),
+        }
+    }
+}
 
-//         let player_move = if game.is_player_turn() {
-//             let r = loop {
-//                 println!("Pick a row...");
-//                 let mut row_input_line = String::new();
-//                 io::stdin()
-//                     .read_line(&mut row_input_line)
-//                     .expect("Failed to read");
-
-//                 match row_input_line.trim().parse::<usize>() {
-//                     Ok(r) => break r,
-//                     Err(_) => println!("Must be a number!"),
-//                 };
-//             };
-
-//             let c = loop {
-//                 println!("Pick a column...");
-//                 let mut column_input_line = String::new();
-//                 io::stdin()
-//                     .read_line(&mut column_input_line)
-//                     .expect("Failed to read");
-
-//                 match column_input_line.trim().parse::<usize>() {
-//                     Ok(c) => break c,
-//                     Err(_) => println!("Must be a number!"),
-//                 };
-//             };
-
-//             Some((r, c))
-//         } else {
-//             None
-//         };
-
-//         match game.run(player_move) {
-//             State::GameOver(message) => {
-//                 println!("{}", message);
-//                 break;
-//             }
-//             State::InProgresss(message) => {
-//                 println!("{}", message);
-//             }
-//         };
-
-//         println!()
-//     }
-// }
+fn render(board: &Board) {
+    for row in 0..3 {
+        let cells: Vec<&str> = (0..3)
+            .map(|col| board[row * 3 + col].map_or(".", Mark::label))
+            .collect();
+        println!("{}", cells.join(" "));
+    }
+}
