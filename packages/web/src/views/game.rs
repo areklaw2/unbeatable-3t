@@ -236,11 +236,18 @@ fn LocalGame() -> Element {
     let full = engine::is_full(&board());
     let game_over = win.is_some() || full;
 
+    let cpu_pending = is_single && !game_over && {
+        let b = board();
+        let count = |mark| b.iter().filter(|c| **c == Some(mark)).count();
+        count(Mark::X) > count(Mark::O)
+    };
+
     let turn_text = match win {
         Some(mark) if is_single && mark == Mark::X => "You win!".to_string(),
         Some(_) if is_single => "Computer wins!".to_string(),
         Some(mark) => format!("{} wins!", mark.label()),
         None if full => "It's a draw".to_string(),
+        None if cpu_pending => "Computer thinking…".to_string(),
         None if is_single => "X to move — your turn".to_string(),
         None => format!("{} to move", turn().label()),
     };
@@ -267,7 +274,7 @@ fn LocalGame() -> Element {
     rsx! {
         GameView {
             board: board(),
-            turn_dot: win.unwrap_or(turn()),
+            turn_dot: win.unwrap_or(if cpu_pending { Mark::O } else { turn() }),
             turn_text,
             label_x,
             label_o,
@@ -278,14 +285,34 @@ fn LocalGame() -> Element {
                 }
                 let mut b = board();
                 if is_single {
-                    let mut seed = rng_state();
-                    if seed == 0 {
-                        seed = entropy_seed();
+                    if cpu_pending || b[cell].is_some() {
+                        return;
                     }
-                    if engine::play_vs_cpu(&mut b, cell, Mark::X, difficulty_value, &mut seed) {
-                        rng_state.set(seed);
-                        board.set(b);
-                    }
+                    let original = b;
+                    b[cell] = Some(Mark::X);
+                    board.set(b);
+
+                    spawn(async move {
+                        dioxus_sdk_time::sleep(std::time::Duration::from_millis(600)).await;
+                        if board() != b {
+                            return;
+                        }
+                        let mut with_reply = original;
+                        let mut seed = rng_state();
+                        if seed == 0 {
+                            seed = entropy_seed();
+                        }
+                        if engine::play_vs_cpu(
+                            &mut with_reply,
+                            cell,
+                            Mark::X,
+                            difficulty_value,
+                            &mut seed,
+                        ) {
+                            rng_state.set(seed);
+                            board.set(with_reply);
+                        }
+                    });
                 } else if b[cell].is_none() {
                     let current = turn();
                     b[cell] = Some(current);
@@ -307,7 +334,6 @@ fn LocalGame() -> Element {
                     variant: ButtonVariant::Outline,
                     size: ButtonSize::Sm,
                     onclick: move |_| {
-                        // rng state carries over so easy games don't repeat
                         board.set([None; 9]);
                         turn.set(Mark::X);
                     },

@@ -24,25 +24,6 @@ pub fn is_full(board: &Board) -> bool {
     board.iter().all(|cell| cell.is_some())
 }
 
-pub fn best_move(board: &Board, cpu: Mark) -> Option<usize> {
-    if winner(board).is_some() {
-        return None;
-    }
-
-    let mut best: Option<(usize, i32)> = None;
-    for i in 0..9 {
-        if board[i].is_none() {
-            let mut next = *board;
-            next[i] = Some(cpu);
-            let score = minimax(&next, cpu, cpu.other(), 1);
-            if best.is_none_or(|(_, s)| score > s) {
-                best = Some((i, score));
-            }
-        }
-    }
-    best.map(|(i, _)| i)
-}
-
 fn minimax(board: &Board, cpu: Mark, to_move: Mark, depth: i32) -> i32 {
     if let Some(w) = winner(board) {
         return if w == cpu { 10 - depth } else { depth - 10 };
@@ -90,7 +71,7 @@ pub fn play_vs_cpu(board: &mut Board, cell: usize, human: Mark, mode: Mode, rng:
 
 /// Uniform-ish random empty cell using a caller-owned xorshift64 state.
 /// No `rand` dependency so the wasm build stays lean.
-pub fn random_move(board: &Board, state: &mut u64) -> Option<usize> {
+fn random_move(board: &Board, state: &mut u64) -> Option<usize> {
     let empties: Vec<usize> = (0..9).filter(|&i| board[i].is_none()).collect();
     if empties.is_empty() {
         return None;
@@ -105,6 +86,25 @@ pub fn random_move(board: &Board, state: &mut u64) -> Option<usize> {
     *state ^= *state << 17;
 
     Some(empties[(*state % empties.len() as u64) as usize])
+}
+
+fn best_move(board: &Board, cpu: Mark) -> Option<usize> {
+    if winner(board).is_some() {
+        return None;
+    }
+
+    let mut best: Option<(usize, i32)> = None;
+    for i in 0..9 {
+        if board[i].is_none() {
+            let mut next = *board;
+            next[i] = Some(cpu);
+            let score = minimax(&next, cpu, cpu.other(), 1);
+            if best.is_none_or(|(_, s)| score > s) {
+                best = Some((i, score));
+            }
+        }
+    }
+    best.map(|(i, _)| i)
 }
 
 #[cfg(test)]
