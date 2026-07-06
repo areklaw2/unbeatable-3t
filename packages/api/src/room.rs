@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::engine::{self, Board};
@@ -20,6 +22,10 @@ pub struct Room {
     pub player_x: Player,
     pub player_o: Option<Player>,
     pub is_x_turn: bool,
+    pub connected: u32,
+    pub last_active: Instant,
+    rematch_x: bool,
+    rematch_o: bool,
 }
 
 impl Room {
@@ -29,6 +35,17 @@ impl Room {
             player_x,
             player_o: None,
             is_x_turn: true,
+            connected: 1,
+            last_active: Instant::now(),
+            rematch_x: false,
+            rematch_o: false,
+        }
+    }
+
+    pub fn player(&self, mark: Mark) -> Option<&Player> {
+        match mark {
+            Mark::X => Some(&self.player_x),
+            Mark::O => self.player_o.as_ref(),
         }
     }
 
@@ -67,6 +84,33 @@ impl Room {
                 }
             }
         }
+    }
+
+    pub fn send_to(&self, mark: Mark, event: ServerEvent) {
+        if let Some(player) = self.player(mark) {
+            let _ = player.tx.send(event);
+        }
+    }
+
+    pub fn request_rematch(&mut self, mark: Mark) -> bool {
+        if self.status() == GameStatus::InProgress {
+            return false;
+        }
+
+        match mark {
+            Mark::X => self.rematch_x = true,
+            Mark::O => self.rematch_o = true,
+        }
+
+        if self.rematch_x && self.rematch_o {
+            self.board = [None; 9];
+            self.is_x_turn = true;
+            self.rematch_x = false;
+            self.rematch_o = false;
+            return true;
+        }
+
+        false
     }
 
     pub fn apply_move(&mut self, mark: Mark, cell: usize) -> Result<(), GameError> {
@@ -263,6 +307,44 @@ mod tests {
             }
             other => panic!("expected GameState, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn request_rematch_needs_both_players_then_resets() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        set_board(&mut room, "XXXOOXOXO");
+        assert!(!room.request_rematch(Mark::X));
+        assert_eq!(room.status(), GameStatus::Won { mark: Mark::X });
+        assert!(room.request_rematch(Mark::O));
+        assert_eq!(room.board, [None; 9]);
+        assert!(room.is_x_turn);
+        assert_eq!(room.status(), GameStatus::InProgress);
+    }
+
+    #[test]
+    fn request_rematch_rejected_mid_game() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        assert!(!room.request_rematch(Mark::X));
+        assert!(!room.request_rematch(Mark::O));
+        assert_eq!(room.status(), GameStatus::InProgress);
+    }
+
+    #[test]
+    fn rematch_flags_clear_after_reset() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        set_board(&mut room, "XXXOOXOXO");
+        room.request_rematch(Mark::X);
+        assert!(room.request_rematch(Mark::O));
+        set_board(&mut room, "XXXOOXOXO");
+        assert!(!room.request_rematch(Mark::X));
+    }
+
+    #[test]
+    fn send_to_targets_single_player() {
+        let (room, mut rx_x, mut rx_o) = full_room();
+        room.send_to(Mark::O, ServerEvent::InvalidMove);
+        assert!(rx_x.try_recv().is_err());
+        assert!(matches!(rx_o.try_recv(), Ok(ServerEvent::InvalidMove)));
     }
 
     #[test]

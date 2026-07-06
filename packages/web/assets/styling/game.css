@@ -191,8 +191,17 @@
 }
 
 .dx-button[data-size="sm"].undo-button,
-.dx-button[data-size="sm"].new-game-button {
+.dx-button[data-size="sm"].new-game-button,
+.dx-button[data-size="sm"].rematch-button {
   height: auto;
   padding: 11px 24px;
   font-size: 13px;
+}
+
+.mp-notice {
+  margin-top: 18px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
 }

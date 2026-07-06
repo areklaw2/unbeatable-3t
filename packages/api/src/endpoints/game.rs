@@ -6,7 +6,7 @@ use dioxus::{
 use crate::{ClientEvent, ServerEvent};
 
 #[cfg(feature = "server")]
-use crate::{GameError, Mark, endpoints::GameSocket, registry::with_room};
+use crate::{GameError, GameStatus, Mark, endpoints::GameSocket, registry::with_room};
 
 #[cfg(feature = "server")]
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -33,6 +33,11 @@ fn connect(room_id: &str, player_id: &str, tx: UnboundedSender<ServerEvent>) -> 
         None => Connect::NotMember,
         Some(mark) => {
             room.attach(mark, tx);
+            room.connected += 1;
+            room.send_to(
+                mark.other(),
+                ServerEvent::OpponentPresence { connected: true },
+            );
             Connect::Connected {
                 mark,
                 snapshot: room.snapshot(),
@@ -40,6 +45,36 @@ fn connect(room_id: &str, player_id: &str, tx: UnboundedSender<ServerEvent>) -> 
         }
     })
     .unwrap_or(Connect::NoRoom)
+}
+
+#[cfg(feature = "server")]
+fn disconnect(room_id: &str, mark: Mark, tx: &UnboundedSender<ServerEvent>) {
+    with_room(room_id, |room| {
+        room.connected = room.connected.saturating_sub(1);
+        let active = room
+            .player(mark)
+            .is_some_and(|player| player.tx.same_channel(tx));
+        if active {
+            room.send_to(
+                mark.other(),
+                ServerEvent::OpponentPresence { connected: false },
+            );
+        }
+    });
+}
+
+#[cfg(feature = "server")]
+fn try_rematch(room_id: &str, mark: Mark) {
+    with_room(room_id, |room| {
+        if room.status() == GameStatus::InProgress {
+            return;
+        }
+        if room.request_rematch(mark) {
+            room.broadcast(room.snapshot());
+        } else {
+            room.broadcast(ServerEvent::RematchRequested { mark });
+        }
+    });
 }
 
 // apply the move and push the new state to both players
@@ -65,7 +100,7 @@ fn rename(room_id: &str, mark: Mark, name: String) {
 async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
     let (tx, mut rx) = mpsc::unbounded_channel::<ServerEvent>();
 
-    let mark = match connect(&room_id, &player_id, tx) {
+    let mark = match connect(&room_id, &player_id, tx.clone()) {
         Connect::NoRoom => {
             let _ = socket.send(ServerEvent::RoomNotFound).await;
             return;
@@ -77,10 +112,12 @@ async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
         Connect::Connected { mark, snapshot } => {
             let connected = ServerEvent::GameConnected { your_mark: mark };
             if socket.send(connected).await.is_err() {
+                disconnect(&room_id, mark, &tx);
                 return;
             }
 
             if socket.send(snapshot).await.is_err() {
+                disconnect(&room_id, mark, &tx);
                 return;
             }
 
@@ -100,6 +137,7 @@ async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
                     }
                 }
                 Ok(ClientEvent::SetName(name)) => rename(&room_id, mark, name),
+                Ok(ClientEvent::Rematch) => try_rematch(&room_id, mark),
                 Err(_) => break,
             },
             event = rx.recv() => match event {
@@ -112,4 +150,6 @@ async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
             }
         }
     }
+
+    disconnect(&room_id, mark, &tx);
 }

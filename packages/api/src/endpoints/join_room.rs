@@ -31,6 +31,7 @@ async fn handle(mut socket: GameSocket, room_id: String, name: Option<String>) {
 
     let joined = with_room(&room_id, |room| {
         room.player_o = Some(player_o);
+        room.connected += 1;
         let _ = room.player_x.tx.send(ServerEvent::PlayerJoined {
             player_o_id: player_o_id.clone(),
         });
@@ -47,6 +48,9 @@ async fn handle(mut socket: GameSocket, room_id: String, name: Option<String>) {
         room_id: room_id.clone(),
     };
     if socket.send(joined_event).await.is_err() {
+        with_room(&room_id, |room| {
+            room.connected = room.connected.saturating_sub(1);
+        });
         return;
     }
 
@@ -66,4 +70,8 @@ async fn handle(mut socket: GameSocket, room_id: String, name: Option<String>) {
             }
         }
     }
+
+    with_room(&room_id, |room| {
+        room.connected = room.connected.saturating_sub(1);
+    });
 }

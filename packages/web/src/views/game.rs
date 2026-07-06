@@ -129,6 +129,9 @@ fn MultiplayerGame(room_id: String) -> Element {
     let mut my_mark = use_signal(|| None::<Mark>);
     let mut name_x = use_signal(|| None::<String>);
     let mut name_o = use_signal(|| None::<String>);
+    let mut opp_connected = use_signal(|| true);
+    let mut i_want_rematch = use_signal(|| false);
+    let mut opp_wants_rematch = use_signal(|| false);
 
     let mut socket = use_websocket({
         let room_id = room_id.clone();
@@ -159,6 +162,20 @@ fn MultiplayerGame(room_id: String) -> Element {
                         status.set(new_status);
                         name_x.set(player_x_name);
                         name_o.set(player_o_name);
+                        if new_status == GameStatus::InProgress {
+                            i_want_rematch.set(false);
+                            opp_wants_rematch.set(false);
+                        }
+                    }
+                    ServerEvent::OpponentPresence { connected } => {
+                        opp_connected.set(connected);
+                    }
+                    ServerEvent::RematchRequested { mark } => {
+                        if my_mark() == Some(mark) {
+                            i_want_rematch.set(true);
+                        } else {
+                            opp_wants_rematch.set(true);
+                        }
                     }
                     ServerEvent::RoomNotFound | ServerEvent::Unauthorized => {
                         nav.push(Route::Title {});
@@ -197,6 +214,14 @@ fn MultiplayerGame(room_id: String) -> Element {
         _ => turn_mark,
     };
 
+    let rematch_label = if i_want_rematch() {
+        "Waiting for opponent…"
+    } else if opp_wants_rematch() {
+        "Accept rematch"
+    } else {
+        "Rematch"
+    };
+
     rsx! {
         GameView {
             board: board(),
@@ -213,6 +238,28 @@ fn MultiplayerGame(room_id: String) -> Element {
                     });
                 }
             },
+
+            if !opp_connected() {
+                div { class: "mp-notice", "Opponent disconnected" }
+            }
+
+            if !in_progress {
+                div { class: "controls-row",
+                    Button {
+                        class: "rematch-button",
+                        variant: ButtonVariant::Outline,
+                        size: ButtonSize::Sm,
+                        disabled: i_want_rematch(),
+                        onclick: move |_| {
+                            i_want_rematch.set(true);
+                            spawn(async move {
+                                let _ = socket.send(ClientEvent::Rematch).await;
+                            });
+                        },
+                        "{rematch_label}"
+                    }
+                }
+            }
         }
     }
 }

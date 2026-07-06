@@ -10,7 +10,7 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 ulid = { version = "1.2.1", optional = true }
 anyhow = { workspace = true }
-tokio = { version = "1.52.3", features = ["sync"], optional = true }
+tokio = { version = "1.52.3", features = ["sync", "rt", "time"], optional = true }
 
 [features]
 server = ["dioxus/server", "dep:ulid", "dep:rand", "dep:tokio"]

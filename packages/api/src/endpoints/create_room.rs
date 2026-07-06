@@ -38,6 +38,9 @@ async fn handle(mut socket: GameSocket, name: Option<String>) {
         room_id: room_id.clone(),
     };
     if socket.send(created).await.is_err() {
+        with_room(&room_id, |room| {
+            room.connected = room.connected.saturating_sub(1);
+        });
         return;
     }
 
@@ -57,4 +60,8 @@ async fn handle(mut socket: GameSocket, name: Option<String>) {
             }
         }
     }
+
+    with_room(&room_id, |room| {
+        room.connected = room.connected.saturating_sub(1);
+    });
 }

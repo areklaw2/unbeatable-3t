@@ -50,6 +50,7 @@ pub enum GameError {
 pub enum ClientEvent {
     SetName(String),
     Move { cell: usize },
+    Rematch,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -78,4 +79,10 @@ pub enum ServerEvent {
         player_o_name: Option<String>,
     },
     InvalidMove,
+    OpponentPresence {
+        connected: bool,
+    },
+    RematchRequested {
+        mark: Mark,
+    },
 }
