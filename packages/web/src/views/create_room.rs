@@ -23,6 +23,7 @@ pub fn CreateRoom() -> Element {
     let mut name = store.name_x();
     let mut room_code = use_signal(|| None::<String>);
     let mut origin = use_signal(|| None::<String>);
+    let mut copied = use_signal(|| false);
 
     let mut socket =
         use_websocket(move || create_room_ws(Some(name.peek().clone()), WebSocketOptions::new()));
@@ -96,7 +97,25 @@ pub fn CreateRoom() -> Element {
                 span { class: "share-link-text",
                     "{origin().as_deref().map(strip_scheme).unwrap_or_default()}/join-room?code={room_code().unwrap_or_default()}"
                 }
-                button { class: "copy-button", "Copy" }
+                button {
+                    class: "copy-button",
+                    onclick: move |_| {
+                        let link = format!(
+                            "{}/join-room?code={}",
+                            origin.peek().clone().unwrap_or_default(),
+                            room_code.peek().clone().unwrap_or_default(),
+                        );
+                        if let Some(window) = web_sys::window() {
+                            let _ = window.navigator().clipboard().write_text(&link);
+                        }
+                        copied.set(true);
+                        spawn(async move {
+                            dioxus_sdk_time::sleep(std::time::Duration::from_millis(1500)).await;
+                            copied.set(false);
+                        });
+                    },
+                    if copied() { "Copied!" } else { "Copy" }
+                }
             }
 
             div { class: "waiting-text", "Waiting for player 2…" }

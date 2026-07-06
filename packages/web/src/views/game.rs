@@ -47,6 +47,9 @@ fn GameView(
     label_x: String,
     label_o: String,
     mode_label: String,
+    wins_x: u32,
+    wins_o: u32,
+    ties: u32,
     on_cell: EventHandler<usize>,
     children: Element,
 ) -> Element {
@@ -96,15 +99,15 @@ fn GameView(
             div { class: "score-row",
                 div { class: "score-col mark-x",
                     div { class: "score-label", "{label_x} · X" }
-                    div { class: "score-value", "0" }
+                    div { class: "score-value", "{wins_x}" }
                 }
                 div { class: "score-col mark-tie",
                     div { class: "score-label", "Tie" }
-                    div { class: "score-value", "0" }
+                    div { class: "score-value", "{ties}" }
                 }
                 div { class: "score-col mark-o",
                     div { class: "score-label", "{label_o} · O" }
-                    div { class: "score-value", "0" }
+                    div { class: "score-value", "{wins_o}" }
                 }
                 div { class: "mode-tag",
                     div { class: "person-icon",
@@ -132,6 +135,9 @@ fn MultiplayerGame(room_id: String) -> Element {
     let mut opp_connected = use_signal(|| true);
     let mut i_want_rematch = use_signal(|| false);
     let mut opp_wants_rematch = use_signal(|| false);
+    let mut wins_x = use_signal(|| 0u32);
+    let mut wins_o = use_signal(|| 0u32);
+    let mut ties = use_signal(|| 0u32);
 
     let mut socket = use_websocket({
         let room_id = room_id.clone();
@@ -156,12 +162,18 @@ fn MultiplayerGame(room_id: String) -> Element {
                         status: new_status,
                         player_x_name,
                         player_o_name,
+                        wins_x: new_wins_x,
+                        wins_o: new_wins_o,
+                        ties: new_ties,
                     } => {
                         board.set(new_board);
                         is_x_turn.set(new_turn);
                         status.set(new_status);
                         name_x.set(player_x_name);
                         name_o.set(player_o_name);
+                        wins_x.set(new_wins_x);
+                        wins_o.set(new_wins_o);
+                        ties.set(new_ties);
                         if new_status == GameStatus::InProgress {
                             i_want_rematch.set(false);
                             opp_wants_rematch.set(false);
@@ -230,6 +242,9 @@ fn MultiplayerGame(room_id: String) -> Element {
             label_x: name_x().unwrap_or_else(|| "Player".to_string()),
             label_o: name_o().unwrap_or_else(|| "Player 2".to_string()),
             mode_label: "2P".to_string(),
+            wins_x: wins_x(),
+            wins_o: wins_o(),
+            ties: ties(),
             on_cell: move |cell: usize| {
                 let cell_open = board()[cell].is_none();
                 if is_my_turn && in_progress && cell_open {
@@ -269,6 +284,26 @@ fn LocalGame() -> Element {
     let mut board = use_signal(|| [None::<Mark>; 9]);
     let mut turn = use_signal(|| Mark::X);
     let mut rng_state = use_signal(|| 0u64);
+    let mut wins_x = use_signal(|| 0u32);
+    let mut wins_o = use_signal(|| 0u32);
+    let mut ties = use_signal(|| 0u32);
+    let mut scored = use_signal(|| false);
+
+    use_effect(move || {
+        let b = board();
+        let win = engine::winner(&b);
+        let over = win.is_some() || engine::is_full(&b);
+        if !over {
+            scored.set(false);
+        } else if !*scored.peek() {
+            scored.set(true);
+            match win {
+                Some(Mark::X) => wins_x += 1,
+                Some(Mark::O) => wins_o += 1,
+                None => ties += 1,
+            }
+        }
+    });
 
     let store = APP_STATE.resolve();
     let game_mode = store.game_mode();
@@ -326,6 +361,9 @@ fn LocalGame() -> Element {
             label_x,
             label_o,
             mode_label: if is_single { "1P" } else { "2P" },
+            wins_x: wins_x(),
+            wins_o: wins_o(),
+            ties: ties(),
             on_cell: move |cell: usize| {
                 if game_over {
                     return;

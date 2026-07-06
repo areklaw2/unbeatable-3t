@@ -24,6 +24,9 @@ pub struct Room {
     pub is_x_turn: bool,
     pub connected: u32,
     pub last_active: Instant,
+    pub wins_x: u32,
+    pub wins_o: u32,
+    pub ties: u32,
     rematch_x: bool,
     rematch_o: bool,
 }
@@ -37,6 +40,9 @@ impl Room {
             is_x_turn: true,
             connected: 1,
             last_active: Instant::now(),
+            wins_x: 0,
+            wins_o: 0,
+            ties: 0,
             rematch_x: false,
             rematch_o: false,
         }
@@ -128,6 +134,12 @@ impl Room {
 
         self.board[cell] = Some(mark);
         self.is_x_turn = !self.is_x_turn;
+        match self.status() {
+            GameStatus::Won { mark: Mark::X } => self.wins_x += 1,
+            GameStatus::Won { mark: Mark::O } => self.wins_o += 1,
+            GameStatus::Draw => self.ties += 1,
+            GameStatus::InProgress => {}
+        }
         Ok(())
     }
 
@@ -150,6 +162,9 @@ impl Room {
             status: self.status(),
             player_x_name: self.player_x.name.clone(),
             player_o_name: self.player_o.as_ref().and_then(|p| p.name.clone()),
+            wins_x: self.wins_x,
+            wins_o: self.wins_o,
+            ties: self.ties,
         }
     }
 
@@ -298,6 +313,7 @@ mod tests {
                 status,
                 player_x_name,
                 player_o_name,
+                ..
             } => {
                 assert_eq!(board[4], Some(Mark::X));
                 assert!(!is_x_turn);
@@ -319,6 +335,74 @@ mod tests {
         assert_eq!(room.board, [None; 9]);
         assert!(room.is_x_turn);
         assert_eq!(room.status(), GameStatus::InProgress);
+    }
+
+    fn play_x_win_top_row(room: &mut Room) {
+        room.apply_move(Mark::X, 0).unwrap();
+        room.apply_move(Mark::O, 3).unwrap();
+        room.apply_move(Mark::X, 1).unwrap();
+        room.apply_move(Mark::O, 4).unwrap();
+        room.apply_move(Mark::X, 2).unwrap();
+    }
+
+    fn play_draw(room: &mut Room) {
+        for (mark, cell) in [
+            (Mark::X, 0),
+            (Mark::O, 1),
+            (Mark::X, 2),
+            (Mark::O, 4),
+            (Mark::X, 3),
+            (Mark::O, 5),
+            (Mark::X, 7),
+            (Mark::O, 6),
+            (Mark::X, 8),
+        ] {
+            room.apply_move(mark, cell).unwrap();
+        }
+    }
+
+    #[test]
+    fn win_increments_winner_score() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        assert_eq!((room.wins_x, room.wins_o, room.ties), (0, 0, 0));
+        play_x_win_top_row(&mut room);
+        assert_eq!((room.wins_x, room.wins_o, room.ties), (1, 0, 0));
+    }
+
+    #[test]
+    fn draw_increments_tie_score() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        play_draw(&mut room);
+        assert_eq!(room.status(), GameStatus::Draw);
+        assert_eq!((room.wins_x, room.wins_o, room.ties), (0, 0, 1));
+    }
+
+    #[test]
+    fn scores_persist_across_rematch_and_keep_counting() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        play_x_win_top_row(&mut room);
+        room.request_rematch(Mark::X);
+        assert!(room.request_rematch(Mark::O));
+        assert_eq!((room.wins_x, room.wins_o, room.ties), (1, 0, 0));
+        play_draw(&mut room);
+        assert_eq!((room.wins_x, room.wins_o, room.ties), (1, 0, 1));
+    }
+
+    #[test]
+    fn snapshot_contains_scores() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        play_x_win_top_row(&mut room);
+        match room.snapshot() {
+            ServerEvent::GameState {
+                wins_x,
+                wins_o,
+                ties,
+                ..
+            } => {
+                assert_eq!((wins_x, wins_o, ties), (1, 0, 0));
+            }
+            other => panic!("expected GameState, got {other:?}"),
+        }
     }
 
     #[test]

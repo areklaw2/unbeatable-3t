@@ -77,6 +77,9 @@ pub enum ServerEvent {
         status: GameStatus,
         player_x_name: Option<String>,
         player_o_name: Option<String>,
+        wins_x: u32,
+        wins_o: u32,
+        ties: u32,
     },
     InvalidMove,
     OpponentPresence {
