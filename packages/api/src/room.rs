@@ -1,57 +1,19 @@
-#[cfg(feature = "server")]
-use std::{
-    collections::HashMap,
-    sync::{LazyLock, Mutex},
-};
-
-#[cfg(feature = "server")]
 use tokio::sync::mpsc::UnboundedSender;
 
-#[cfg(feature = "server")]
 use crate::{GameError, GameStatus, ServerEvent};
 
-#[cfg(feature = "server")]
 pub struct Player {
     pub id: String,
     pub name: Option<String>,
     pub tx: UnboundedSender<ServerEvent>,
 }
 
-#[cfg(feature = "server")]
 impl Player {
     pub fn new(id: String, name: Option<String>, tx: UnboundedSender<ServerEvent>) -> Self {
         Self { id, name, tx }
     }
 }
 
-#[cfg(feature = "server")]
-pub static ROOMS: LazyLock<Mutex<HashMap<String, Room>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
-
-#[cfg(feature = "server")]
-const ROOM_CODE_CHARS: &[u8] = b"123456789ABCDEFGHJKMNPQRSTUVWXYZ";
-
-#[cfg(feature = "server")]
-const ROOM_CODE_LEN: usize = 4;
-
-#[cfg(feature = "server")]
-fn generate_room_code() -> String {
-    (0..ROOM_CODE_LEN)
-        .map(|_| ROOM_CODE_CHARS[rand::random_range(0..ROOM_CODE_CHARS.len())] as char)
-        .collect()
-}
-
-#[cfg(feature = "server")]
-pub fn unique_room_code(rooms: &HashMap<String, Room>) -> String {
-    loop {
-        let code = generate_room_code();
-        if !rooms.contains_key(&code) {
-            return code;
-        }
-    }
-}
-
-#[cfg(feature = "server")]
 pub struct Room {
     pub board: Vec<Vec<String>>,
     pub player_x: Player,
@@ -59,7 +21,6 @@ pub struct Room {
     pub is_x_turn: bool,
 }
 
-#[cfg(feature = "server")]
 impl Room {
     pub fn new(player_x: Player) -> Self {
         Self {
@@ -91,6 +52,17 @@ impl Room {
             _ => {
                 if let Some(player_o) = self.player_o.as_mut() {
                     player_o.tx = tx;
+                }
+            }
+        }
+    }
+
+    pub fn set_name(&mut self, mark: &str, name: String) {
+        match mark {
+            "X" => self.player_x.name = Some(name),
+            _ => {
+                if let Some(player_o) = self.player_o.as_mut() {
+                    player_o.name = Some(name);
                 }
             }
         }
@@ -146,7 +118,7 @@ impl Room {
                 }
             }
         }
-        return true;
+        true
     }
 
     pub fn win(&self, value: &str) -> bool {
@@ -185,7 +157,7 @@ impl Room {
     }
 }
 
-#[cfg(all(test, feature = "server"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
@@ -312,6 +284,18 @@ mod tests {
         room.player_x.tx.send(ServerEvent::InvalidMove).unwrap();
         assert!(matches!(rx_new.try_recv(), Ok(ServerEvent::InvalidMove)));
         assert!(rx_x_old.try_recv().is_err());
+    }
+
+    #[test]
+    fn set_name_updates_right_player() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        room.set_name("X", "Xena".to_string());
+        room.set_name("O", "Omar".to_string());
+        assert_eq!(room.player_x.name.as_deref(), Some("Xena"));
+        assert_eq!(
+            room.player_o.as_ref().unwrap().name.as_deref(),
+            Some("Omar")
+        );
     }
 
     #[test]

@@ -32,4 +32,4 @@ That's it! Now you can play the game.
 
 ## TODO
 
-- [ ] Add multiplayer with websockets
+- [ ] room cleanup/TTL, opponent-disconnect notice, rematch
