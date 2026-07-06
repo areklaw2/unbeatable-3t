@@ -27,6 +27,7 @@ pub struct Room {
     pub wins_x: u32,
     pub wins_o: u32,
     pub ties: u32,
+    x_starts: bool,
     rematch_x: bool,
     rematch_o: bool,
 }
@@ -43,6 +44,7 @@ impl Room {
             wins_x: 0,
             wins_o: 0,
             ties: 0,
+            x_starts: true,
             rematch_x: false,
             rematch_o: false,
         }
@@ -110,7 +112,8 @@ impl Room {
 
         if self.rematch_x && self.rematch_o {
             self.board = [None; 9];
-            self.is_x_turn = true;
+            self.x_starts = !self.x_starts;
+            self.is_x_turn = self.x_starts;
             self.rematch_x = false;
             self.rematch_o = false;
             return true;
@@ -333,7 +336,7 @@ mod tests {
         assert_eq!(room.status(), GameStatus::Won { mark: Mark::X });
         assert!(room.request_rematch(Mark::O));
         assert_eq!(room.board, [None; 9]);
-        assert!(room.is_x_turn);
+        assert!(!room.is_x_turn); // first player alternates each round
         assert_eq!(room.status(), GameStatus::InProgress);
     }
 
@@ -345,17 +348,18 @@ mod tests {
         room.apply_move(Mark::X, 2).unwrap();
     }
 
-    fn play_draw(room: &mut Room) {
+    fn play_draw(room: &mut Room, first: Mark) {
+        let second = first.other();
         for (mark, cell) in [
-            (Mark::X, 0),
-            (Mark::O, 1),
-            (Mark::X, 2),
-            (Mark::O, 4),
-            (Mark::X, 3),
-            (Mark::O, 5),
-            (Mark::X, 7),
-            (Mark::O, 6),
-            (Mark::X, 8),
+            (first, 0),
+            (second, 1),
+            (first, 2),
+            (second, 4),
+            (first, 3),
+            (second, 5),
+            (first, 7),
+            (second, 6),
+            (first, 8),
         ] {
             room.apply_move(mark, cell).unwrap();
         }
@@ -372,7 +376,7 @@ mod tests {
     #[test]
     fn draw_increments_tie_score() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        play_draw(&mut room);
+        play_draw(&mut room, Mark::X);
         assert_eq!(room.status(), GameStatus::Draw);
         assert_eq!((room.wins_x, room.wins_o, room.ties), (0, 0, 1));
     }
@@ -384,8 +388,35 @@ mod tests {
         room.request_rematch(Mark::X);
         assert!(room.request_rematch(Mark::O));
         assert_eq!((room.wins_x, room.wins_o, room.ties), (1, 0, 0));
-        play_draw(&mut room);
+        // O starts the second round
+        play_draw(&mut room, Mark::O);
         assert_eq!((room.wins_x, room.wins_o, room.ties), (1, 0, 1));
+    }
+
+    #[test]
+    fn rematch_alternates_first_player() {
+        let (mut room, _rx_x, _rx_o) = full_room();
+        play_x_win_top_row(&mut room);
+        room.request_rematch(Mark::X);
+        assert!(room.request_rematch(Mark::O));
+
+        // second game: O goes first
+        assert!(!room.is_x_turn);
+        assert!(room.apply_move(Mark::X, 0).is_err());
+        assert!(room.apply_move(Mark::O, 0).is_ok());
+
+        // O wins top row
+        room.apply_move(Mark::X, 3).unwrap();
+        room.apply_move(Mark::O, 1).unwrap();
+        room.apply_move(Mark::X, 4).unwrap();
+        room.apply_move(Mark::O, 2).unwrap();
+        assert_eq!(room.status(), GameStatus::Won { mark: Mark::O });
+
+        // third game: back to X
+        room.request_rematch(Mark::X);
+        assert!(room.request_rematch(Mark::O));
+        assert!(room.is_x_turn);
+        assert!(room.apply_move(Mark::X, 0).is_ok());
     }
 
     #[test]
