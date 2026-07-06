@@ -19,6 +19,12 @@
   --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
