@@ -6,7 +6,7 @@ use dioxus::{
 use crate::{ClientEvent, ServerEvent};
 
 #[cfg(feature = "server")]
-use crate::{GameError, endpoints::GameSocket, registry::with_room};
+use crate::{GameError, Mark, endpoints::GameSocket, registry::with_room};
 
 #[cfg(feature = "server")]
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -24,10 +24,7 @@ pub async fn game_ws(
 enum Connect {
     NoRoom,
     NotMember,
-    Connected {
-        mark: &'static str,
-        snapshot: ServerEvent,
-    },
+    Connected { mark: Mark, snapshot: ServerEvent },
 }
 
 #[cfg(feature = "server")]
@@ -47,9 +44,9 @@ fn connect(room_id: &str, player_id: &str, tx: UnboundedSender<ServerEvent>) -> 
 
 // apply the move and push the new state to both players
 #[cfg(feature = "server")]
-fn try_move(room_id: &str, mark: &str, r: usize, c: usize) -> Result<(), GameError> {
+fn try_move(room_id: &str, mark: Mark, cell: usize) -> Result<(), GameError> {
     with_room(room_id, |room| {
-        room.apply_move(mark, r, c)?;
+        room.apply_move(mark, cell)?;
         room.broadcast(room.snapshot());
         Ok(())
     })
@@ -57,7 +54,7 @@ fn try_move(room_id: &str, mark: &str, r: usize, c: usize) -> Result<(), GameErr
 }
 
 #[cfg(feature = "server")]
-fn rename(room_id: &str, mark: &str, name: String) {
+fn rename(room_id: &str, mark: Mark, name: String) {
     with_room(room_id, |room| {
         room.set_name(mark, name);
         room.broadcast(room.snapshot());
@@ -78,9 +75,7 @@ async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
             return;
         }
         Connect::Connected { mark, snapshot } => {
-            let connected = ServerEvent::GameConnected {
-                your_mark: mark.to_string(),
-            };
+            let connected = ServerEvent::GameConnected { your_mark: mark };
             if socket.send(connected).await.is_err() {
                 return;
             }
@@ -96,9 +91,9 @@ async fn handle(mut socket: GameSocket, room_id: String, player_id: String) {
     loop {
         tokio::select! {
             incoming = socket.recv() => match incoming {
-                Ok(ClientEvent::Move { r, c }) => {
+                Ok(ClientEvent::Move { cell }) => {
                     // mover gets the new state too, via its own rx
-                    if try_move(&room_id, mark, r, c).is_err()
+                    if try_move(&room_id, mark, cell).is_err()
                         && socket.send(ServerEvent::InvalidMove).await.is_err()
                     {
                         break;

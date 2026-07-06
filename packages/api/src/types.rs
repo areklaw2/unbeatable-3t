@@ -1,16 +1,40 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::engine::Board;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     Easy,
     Hard,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mark {
+    X,
+    O,
+}
+
+impl Mark {
+    pub fn other(self) -> Mark {
+        match self {
+            Mark::X => Mark::O,
+            Mark::O => Mark::X,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Mark::X => "X",
+            Mark::O => "O",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameStatus {
     InProgress,
-    Won { mark: String },
+    Won { mark: Mark },
     Draw,
 }
 
@@ -25,7 +49,7 @@ pub enum GameError {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ClientEvent {
     SetName(String),
-    Move { r: usize, c: usize },
+    Move { cell: usize },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,10 +68,10 @@ pub enum ServerEvent {
     RoomNotFound,
     Unauthorized,
     GameConnected {
-        your_mark: String,
+        your_mark: Mark,
     },
     GameState {
-        board: Vec<Vec<String>>,
+        board: Board,
         is_x_turn: bool,
         status: GameStatus,
         player_x_name: Option<String>,

@@ -1,4 +1,4 @@
-use api::{ClientEvent, GameStatus, ServerEvent, game_ws};
+use api::{ClientEvent, GameStatus, Mark, ServerEvent, engine, game_ws};
 use dioxus::fullstack::{WebSocketOptions, use_websocket};
 use dioxus::prelude::*;
 use gloo_storage::{LocalStorage, Storage};
@@ -9,40 +9,21 @@ use crate::state::{APP_STATE, AppStateStoreExt, GameMode};
 
 const GAME_CSS: Asset = asset!("/assets/styling/game.css");
 
-#[derive(Clone, Copy, PartialEq)]
-enum Mark {
-    X,
-    O,
-}
-
-impl Mark {
-    fn label(self) -> &'static str {
-        match self {
-            Mark::X => "X",
-            Mark::O => "O",
-        }
-    }
-
-    fn class(self) -> &'static str {
-        match self {
-            Mark::X => "mark-x",
-            Mark::O => "mark-o",
-        }
-    }
-
-    fn other(self) -> Mark {
-        match self {
-            Mark::X => Mark::O,
-            Mark::O => Mark::X,
-        }
+fn mark_css(mark: Mark) -> &'static str {
+    match mark {
+        Mark::X => "mark-x",
+        Mark::O => "mark-o",
     }
 }
 
-fn mark_class(cell: &str) -> &'static str {
-    match cell {
-        "X" => "mark-x",
-        "O" => "mark-o",
-        _ => "",
+fn entropy_seed() -> u64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        web_sys::js_sys::Date::now().to_bits()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        1
     }
 }
 
@@ -59,12 +40,93 @@ pub fn Game(room_id: Option<String>) -> Element {
 }
 
 #[component]
+fn GameView(
+    board: engine::Board,
+    turn_dot: Mark,
+    turn_text: String,
+    label_x: String,
+    label_o: String,
+    mode_label: String,
+    on_cell: EventHandler<usize>,
+    children: Element,
+) -> Element {
+    let nav = use_navigator();
+
+    rsx! {
+        document::Link { rel: "stylesheet", href: GAME_CSS }
+
+        div { class: "card screen",
+            div { class: "game-header",
+                button {
+                    class: "quit-link",
+                    onclick: move |_| {
+                        nav.push(Route::Title {});
+                    },
+                    "← Quit"
+                }
+                div { class: "logo-sm",
+                    "3T"
+                    span { class: "dot", "." }
+                }
+            }
+
+            div { class: "turn-row",
+                div { class: "turn-dot {mark_css(turn_dot)}" }
+                div { class: "turn-text", "{turn_text}" }
+            }
+
+            div { class: "board-wrap",
+                div { class: "board",
+                    for i in 0..9 {
+                        div {
+                            key: "{i}",
+                            class: {
+                                match board[i] {
+                                    Some(mark) => format!("cell filled {}", mark_css(mark)),
+                                    None => "cell".to_string(),
+                                }
+                            },
+                            onclick: move |_| on_cell.call(i),
+                            {board[i].map(|mark| mark.label()).unwrap_or("")}
+                        }
+                    }
+                }
+            }
+
+            div { class: "score-row",
+                div { class: "score-col mark-x",
+                    div { class: "score-label", "{label_x} · X" }
+                    div { class: "score-value", "0" }
+                }
+                div { class: "score-col mark-tie",
+                    div { class: "score-label", "Tie" }
+                    div { class: "score-value", "0" }
+                }
+                div { class: "score-col mark-o",
+                    div { class: "score-label", "{label_o} · O" }
+                    div { class: "score-value", "0" }
+                }
+                div { class: "mode-tag",
+                    div { class: "person-icon",
+                        div { class: "person-head" }
+                        div { class: "person-body" }
+                    }
+                    div { class: "mode-label", "{mode_label}" }
+                }
+            }
+
+            {children}
+        }
+    }
+}
+
+#[component]
 fn MultiplayerGame(room_id: String) -> Element {
     let nav = use_navigator();
-    let mut board = use_signal(|| vec![vec![String::from(" "); 3]; 3]);
+    let mut board = use_signal(|| [None::<Mark>; 9]);
     let mut is_x_turn = use_signal(|| true);
     let mut status = use_signal(|| GameStatus::InProgress);
-    let mut my_mark = use_signal(|| None::<String>);
+    let mut my_mark = use_signal(|| None::<Mark>);
     let mut name_x = use_signal(|| None::<String>);
     let mut name_o = use_signal(|| None::<String>);
 
@@ -108,128 +170,81 @@ fn MultiplayerGame(room_id: String) -> Element {
         }
     });
 
-    let turn_mark = if is_x_turn() { "X" } else { "O" };
-    let is_my_turn = my_mark().as_deref() == Some(turn_mark);
+    let turn_mark = if is_x_turn() { Mark::X } else { Mark::O };
+    let is_my_turn = my_mark() == Some(turn_mark);
     let in_progress = status() == GameStatus::InProgress;
 
     let turn_text = match status() {
         GameStatus::InProgress => {
             if is_my_turn {
-                format!("{turn_mark} to move — your turn")
+                format!("{} to move — your turn", turn_mark.label())
             } else {
-                format!("{turn_mark} to move")
+                format!("{} to move", turn_mark.label())
             }
         }
-        GameStatus::Won { ref mark } => {
-            if my_mark().as_deref() == Some(mark.as_str()) {
-                format!("{mark} wins — you win!")
+        GameStatus::Won { mark } => {
+            if my_mark() == Some(mark) {
+                format!("{} wins — you win!", mark.label())
             } else {
-                format!("{mark} wins!")
+                format!("{} wins!", mark.label())
             }
         }
         GameStatus::Draw => "It's a draw".to_string(),
     };
 
-    let turn_dot_class = if is_x_turn() { "mark-x" } else { "mark-o" };
-    let label_x = name_x().unwrap_or_else(|| "Player".to_string());
-    let label_o = name_o().unwrap_or_else(|| "Player 2".to_string());
+    let turn_dot = match status() {
+        GameStatus::Won { mark } => mark,
+        _ => turn_mark,
+    };
 
     rsx! {
-        document::Link { rel: "stylesheet", href: GAME_CSS }
-
-        div { class: "card screen",
-            div { class: "game-header",
-                button {
-                    class: "quit-link",
-                    onclick: move |_| {
-                        nav.push(Route::Title {});
-                    },
-                    "← Quit"
+        GameView {
+            board: board(),
+            turn_dot,
+            turn_text,
+            label_x: name_x().unwrap_or_else(|| "Player".to_string()),
+            label_o: name_o().unwrap_or_else(|| "Player 2".to_string()),
+            mode_label: "2P".to_string(),
+            on_cell: move |cell: usize| {
+                let cell_open = board()[cell].is_none();
+                if is_my_turn && in_progress && cell_open {
+                    spawn(async move {
+                        let _ = socket.send(ClientEvent::Move { cell }).await;
+                    });
                 }
-                div { class: "logo-sm",
-                    "3T"
-                    span { class: "dot", "." }
-                }
-            }
-
-            div { class: "turn-row",
-                div { class: "turn-dot {turn_dot_class}" }
-                div { class: "turn-text", "{turn_text}" }
-            }
-
-            div { class: "board-wrap",
-                div { class: "board",
-                    for i in 0..9 {
-                        div {
-                            key: "{i}",
-                            class: {
-                                let cell = board()[i / 3][i % 3].clone();
-                                if cell == " " {
-                                    "cell".to_string()
-                                } else {
-                                    format!("cell filled {}", mark_class(&cell))
-                                }
-                            },
-                            onclick: move |_| {
-                                let cell_open = board()[i / 3][i % 3] == " ";
-                                if is_my_turn && in_progress && cell_open {
-                                    spawn(async move {
-                                        let _ = socket
-                                            .send(ClientEvent::Move {
-                                                r: i / 3,
-                                                c: i % 3,
-                                            })
-                                            .await;
-                                    });
-                                }
-                            },
-                            {
-                                let cell = board()[i / 3][i % 3].clone();
-                                if cell == " " { String::new() } else { cell }
-                            }
-                        }
-                    }
-                }
-            }
-
-            div { class: "score-row",
-                div { class: "score-col mark-x",
-                    div { class: "score-label", "{label_x} · X" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "score-col mark-tie",
-                    div { class: "score-label", "Tie" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "score-col mark-o",
-                    div { class: "score-label", "{label_o} · O" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "mode-tag",
-                    div { class: "person-icon",
-                        div { class: "person-head" }
-                        div { class: "person-body" }
-                    }
-                    div { class: "mode-label", "2P" }
-                }
-            }
+            },
         }
     }
 }
 
 #[component]
 fn LocalGame() -> Element {
-    let nav = use_navigator();
     let mut board = use_signal(|| [None::<Mark>; 9]);
     let mut turn = use_signal(|| Mark::X);
+    let mut rng_state = use_signal(|| 0u64);
 
     let store = APP_STATE.resolve();
     let game_mode = store.game_mode();
+    let difficulty = store.difficulty();
     let name_x = store.name_x();
     let name_o = store.name_o();
 
     let is_single = game_mode.cloned() == GameMode::Single;
-    let mode_label = if is_single { "1P" } else { "2P" };
+    let difficulty_value = difficulty.cloned();
+
+    let win = engine::winner(&board());
+    let full = engine::is_full(&board());
+    let game_over = win.is_some() || full;
+
+    let turn_text = match win {
+        Some(mark) if is_single && mark == Mark::X => "You win!".to_string(),
+        Some(_) if is_single => "Computer wins!".to_string(),
+        Some(mark) => format!("{} wins!", mark.label()),
+        None if full => "It's a draw".to_string(),
+        None if is_single => "X to move — your turn".to_string(),
+        None => format!("{} to move", turn().label()),
+    };
+
     let label_x = {
         let value = name_x.cloned();
         if value.is_empty() {
@@ -250,68 +265,34 @@ fn LocalGame() -> Element {
     };
 
     rsx! {
-        document::Link { rel: "stylesheet", href: GAME_CSS }
-
-        div { class: "card screen",
-            div { class: "game-header",
-                button {
-                    class: "quit-link",
-                    onclick: move |_| {
-                        nav.push(Route::Title {});
-                    },
-                    "← Quit"
+        GameView {
+            board: board(),
+            turn_dot: win.unwrap_or(turn()),
+            turn_text,
+            label_x,
+            label_o,
+            mode_label: if is_single { "1P" } else { "2P" },
+            on_cell: move |cell: usize| {
+                if game_over {
+                    return;
                 }
-                div { class: "logo-sm",
-                    "3T"
-                    span { class: "dot", "." }
-                }
-            }
-
-            div { class: "turn-row",
-                div { class: "turn-dot {turn().class()}" }
-                div { class: "turn-text", "{turn().label()} to move" }
-            }
-
-            div { class: "board-wrap",
-                div { class: "board",
-                    for i in 0..9 {
-                        div {
-                            key: "{i}",
-                            class: if let Some(mark) = board()[i] { "cell filled {mark.class()}" } else { "cell" },
-                            onclick: move |_| {
-                                if board()[i].is_none() {
-                                    let current = turn();
-                                    board.write()[i] = Some(current);
-                                    turn.set(current.other());
-                                }
-                            },
-                            {board()[i].map(|mark| mark.label()).unwrap_or("")}
-                        }
+                let mut b = board();
+                if is_single {
+                    let mut seed = rng_state();
+                    if seed == 0 {
+                        seed = entropy_seed();
                     }
-                }
-            }
-
-            div { class: "score-row",
-                div { class: "score-col mark-x",
-                    div { class: "score-label", "{label_x} · X" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "score-col mark-tie",
-                    div { class: "score-label", "Tie" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "score-col mark-o",
-                    div { class: "score-label", "{label_o} · O" }
-                    div { class: "score-value", "0" }
-                }
-                div { class: "mode-tag",
-                    div { class: "person-icon",
-                        div { class: "person-head" }
-                        div { class: "person-body" }
+                    if engine::play_vs_cpu(&mut b, cell, Mark::X, difficulty_value, &mut seed) {
+                        rng_state.set(seed);
+                        board.set(b);
                     }
-                    div { class: "mode-label", "{mode_label}" }
+                } else if b[cell].is_none() {
+                    let current = turn();
+                    b[cell] = Some(current);
+                    board.set(b);
+                    turn.set(current.other());
                 }
-            }
+            },
 
             div { class: "controls-row",
                 Button {
@@ -326,6 +307,7 @@ fn LocalGame() -> Element {
                     variant: ButtonVariant::Outline,
                     size: ButtonSize::Sm,
                     onclick: move |_| {
+                        // rng state carries over so easy games don't repeat
                         board.set([None; 9]);
                         turn.set(Mark::X);
                     },

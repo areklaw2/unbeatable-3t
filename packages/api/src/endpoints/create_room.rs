@@ -7,6 +7,7 @@ use crate::{ClientEvent, ServerEvent};
 
 #[cfg(feature = "server")]
 use crate::{
+    Mark,
     endpoints::GameSocket,
     registry::{insert_room, with_room},
     room::Player,
@@ -44,7 +45,7 @@ async fn handle(mut socket: GameSocket, name: Option<String>) {
         tokio::select! {
             incoming = socket.recv() => match incoming {
                 Ok(ClientEvent::SetName(name)) => {
-                    with_room(&room_id, |room| room.set_name("X", name));
+                    with_room(&room_id, |room| room.set_name(Mark::X, name));
                 }
                 Ok(_) => {}
                 Err(_) => break,

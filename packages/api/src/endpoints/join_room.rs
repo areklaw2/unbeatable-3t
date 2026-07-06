@@ -6,7 +6,7 @@ use dioxus::{
 use crate::{ClientEvent, ServerEvent};
 
 #[cfg(feature = "server")]
-use crate::{endpoints::GameSocket, registry::with_room, room::Player};
+use crate::{Mark, endpoints::GameSocket, registry::with_room, room::Player};
 
 #[cfg(feature = "server")]
 use tokio::sync::mpsc;
@@ -54,7 +54,7 @@ async fn handle(mut socket: GameSocket, room_id: String, name: Option<String>) {
         tokio::select! {
             incoming = socket.recv() => match incoming {
                 Ok(ClientEvent::SetName(name)) => {
-                    with_room(&room_id, |room| room.set_name("O", name));
+                    with_room(&room_id, |room| room.set_name(Mark::O, name));
                 }
                 Ok(_) => {}
                 Err(_) => break,

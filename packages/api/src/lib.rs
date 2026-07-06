@@ -1,5 +1,5 @@
 mod endpoints;
-mod game;
+pub mod engine;
 mod types;
 
 #[cfg(feature = "server")]

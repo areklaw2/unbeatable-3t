@@ -1,6 +1,7 @@
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{GameError, GameStatus, ServerEvent};
+use crate::engine::{self, Board};
+use crate::{GameError, GameStatus, Mark, ServerEvent};
 
 pub struct Player {
     pub id: String,
@@ -15,7 +16,7 @@ impl Player {
 }
 
 pub struct Room {
-    pub board: Vec<Vec<String>>,
+    pub board: Board,
     pub player_x: Player,
     pub player_o: Option<Player>,
     pub is_x_turn: bool,
@@ -24,32 +25,32 @@ pub struct Room {
 impl Room {
     pub fn new(player_x: Player) -> Self {
         Self {
-            board: vec![vec![String::from(" "); 3]; 3],
+            board: [None; 9],
             player_x,
             player_o: None,
             is_x_turn: true,
         }
     }
 
-    pub fn mark_of(&self, player_id: &str) -> Option<&'static str> {
+    pub fn mark_of(&self, player_id: &str) -> Option<Mark> {
         if player_id == self.player_x.id {
-            return Some("X");
+            return Some(Mark::X);
         }
 
         if let Some(player_o) = &self.player_o
             && player_o.id == player_id
         {
-            return Some("O");
+            return Some(Mark::O);
         }
 
         None
     }
 
     // swap stored tx for that player (reconnect + first game-page connect, same path)
-    pub fn attach(&mut self, mark: &str, tx: UnboundedSender<ServerEvent>) {
+    pub fn attach(&mut self, mark: Mark, tx: UnboundedSender<ServerEvent>) {
         match mark {
-            "X" => self.player_x.tx = tx,
-            _ => {
+            Mark::X => self.player_x.tx = tx,
+            Mark::O => {
                 if let Some(player_o) = self.player_o.as_mut() {
                     player_o.tx = tx;
                 }
@@ -57,10 +58,10 @@ impl Room {
         }
     }
 
-    pub fn set_name(&mut self, mark: &str, name: String) {
+    pub fn set_name(&mut self, mark: Mark, name: String) {
         match mark {
-            "X" => self.player_x.name = Some(name),
-            _ => {
+            Mark::X => self.player_x.name = Some(name),
+            Mark::O => {
                 if let Some(player_o) = self.player_o.as_mut() {
                     player_o.name = Some(name);
                 }
@@ -68,80 +69,39 @@ impl Room {
         }
     }
 
-    pub fn apply_move(&mut self, mark: &str, r: usize, c: usize) -> Result<(), GameError> {
+    pub fn apply_move(&mut self, mark: Mark, cell: usize) -> Result<(), GameError> {
         if self.status() != GameStatus::InProgress {
-            return Err(GameError::InvalidMove(r, c));
+            return Err(GameError::InvalidMove(cell / 3, cell % 3));
         }
 
-        if self.is_x_turn != (mark == "X") {
-            return Err(GameError::InvalidMove(r, c));
+        if self.is_x_turn != (mark == Mark::X) {
+            return Err(GameError::InvalidMove(cell / 3, cell % 3));
         }
 
-        if r >= 3 || c >= 3 {
-            return Err(GameError::InvalidMove(r, c));
+        if cell >= 9 || self.board[cell].is_some() {
+            return Err(GameError::InvalidMove(cell / 3, cell % 3));
         }
 
-        if self.board[r][c] != " " {
-            return Err(GameError::InvalidMove(r, c));
-        }
-
-        self.board[r][c] = mark.to_string();
+        self.board[cell] = Some(mark);
         self.is_x_turn = !self.is_x_turn;
         Ok(())
     }
 
     pub fn status(&self) -> GameStatus {
-        if self.win("X") {
-            return GameStatus::Won {
-                mark: "X".to_string(),
-            };
+        if let Some(mark) = engine::winner(&self.board) {
+            return GameStatus::Won { mark };
         }
 
-        if self.win("O") {
-            return GameStatus::Won {
-                mark: "O".to_string(),
-            };
-        }
-
-        if self.is_full() {
+        if engine::is_full(&self.board) {
             return GameStatus::Draw;
         }
 
         GameStatus::InProgress
     }
 
-    fn is_full(&self) -> bool {
-        for r in 0..3 {
-            for c in 0..3 {
-                if self.board[r][c] == " " {
-                    return false;
-                }
-            }
-        }
-        true
-    }
-
-    pub fn win(&self, value: &str) -> bool {
-        [
-            // Columns
-            [&self.board[0][0], &self.board[1][0], &self.board[2][0]],
-            [&self.board[0][1], &self.board[1][1], &self.board[2][1]],
-            [&self.board[0][2], &self.board[1][2], &self.board[2][2]],
-            // Rows
-            [&self.board[0][0], &self.board[0][1], &self.board[0][2]],
-            [&self.board[1][0], &self.board[1][1], &self.board[1][2]],
-            [&self.board[2][0], &self.board[2][1], &self.board[2][2]],
-            // Diagonals
-            [&self.board[0][0], &self.board[1][1], &self.board[2][2]],
-            [&self.board[0][2], &self.board[1][1], &self.board[2][0]],
-        ]
-        .iter()
-        .any(|combo| combo.iter().all(|&cell| cell == value))
-    }
-
     pub fn snapshot(&self) -> ServerEvent {
         ServerEvent::GameState {
-            board: self.board.clone(),
+            board: self.board,
             is_x_turn: self.is_x_turn,
             status: self.status(),
             player_x_name: self.player_x.name.clone(),
@@ -182,91 +142,76 @@ mod tests {
         (room, rx_x, rx_o)
     }
 
-    fn set_board(room: &mut Room, rows: [[&str; 3]; 3]) {
-        for r in 0..3 {
-            for c in 0..3 {
-                room.board[r][c] = rows[r][c].to_string();
-            }
+    fn set_board(room: &mut Room, cells: &str) {
+        for (i, ch) in cells.chars().enumerate() {
+            room.board[i] = match ch {
+                'X' => Some(Mark::X),
+                'O' => Some(Mark::O),
+                _ => None,
+            };
         }
     }
 
     #[test]
     fn mark_of_finds_members_and_rejects_stranger() {
         let (room, _rx_x, _rx_o) = full_room();
-        assert_eq!(room.mark_of("xid"), Some("X"));
-        assert_eq!(room.mark_of("oid"), Some("O"));
+        assert_eq!(room.mark_of("xid"), Some(Mark::X));
+        assert_eq!(room.mark_of("oid"), Some(Mark::O));
         assert_eq!(room.mark_of("nope"), None);
     }
 
     #[test]
     fn apply_move_places_mark_and_flips_turn() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        assert!(room.apply_move("X", 0, 0).is_ok());
-        assert_eq!(room.board[0][0], "X");
+        assert!(room.apply_move(Mark::X, 0).is_ok());
+        assert_eq!(room.board[0], Some(Mark::X));
         assert!(!room.is_x_turn);
-        assert!(room.apply_move("O", 1, 1).is_ok());
-        assert_eq!(room.board[1][1], "O");
+        assert!(room.apply_move(Mark::O, 4).is_ok());
+        assert_eq!(room.board[4], Some(Mark::O));
         assert!(room.is_x_turn);
     }
 
     #[test]
     fn apply_move_rejects_out_of_turn() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        assert!(room.apply_move("O", 0, 0).is_err());
-        assert_eq!(room.board[0][0], " ");
-        assert!(room.apply_move("X", 0, 0).is_ok());
-        assert!(room.apply_move("X", 0, 1).is_err());
+        assert!(room.apply_move(Mark::O, 0).is_err());
+        assert_eq!(room.board[0], None);
+        assert!(room.apply_move(Mark::X, 0).is_ok());
+        assert!(room.apply_move(Mark::X, 1).is_err());
     }
 
     #[test]
     fn apply_move_rejects_occupied_and_out_of_bounds() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        assert!(room.apply_move("X", 3, 0).is_err());
-        assert!(room.apply_move("X", 0, 3).is_err());
-        assert!(room.apply_move("X", 0, 0).is_ok());
-        assert!(room.apply_move("O", 0, 0).is_err());
+        assert!(room.apply_move(Mark::X, 9).is_err());
+        assert!(room.apply_move(Mark::X, 0).is_ok());
+        assert!(room.apply_move(Mark::O, 0).is_err());
     }
 
     #[test]
     fn apply_move_rejects_after_game_over() {
         let (mut room, _rx_x, _rx_o) = full_room();
         // X wins top row
-        assert!(room.apply_move("X", 0, 0).is_ok());
-        assert!(room.apply_move("O", 1, 0).is_ok());
-        assert!(room.apply_move("X", 0, 1).is_ok());
-        assert!(room.apply_move("O", 1, 1).is_ok());
-        assert!(room.apply_move("X", 0, 2).is_ok());
-        assert_eq!(
-            room.status(),
-            GameStatus::Won {
-                mark: "X".to_string()
-            }
-        );
-        assert!(room.apply_move("O", 2, 2).is_err());
+        assert!(room.apply_move(Mark::X, 0).is_ok());
+        assert!(room.apply_move(Mark::O, 3).is_ok());
+        assert!(room.apply_move(Mark::X, 1).is_ok());
+        assert!(room.apply_move(Mark::O, 4).is_ok());
+        assert!(room.apply_move(Mark::X, 2).is_ok());
+        assert_eq!(room.status(), GameStatus::Won { mark: Mark::X });
+        assert!(room.apply_move(Mark::O, 8).is_err());
     }
 
     #[test]
     fn status_reports_win_on_full_board() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        set_board(
-            &mut room,
-            [["X", "X", "X"], ["O", "O", "X"], ["O", "X", "O"]],
-        );
-        assert_eq!(
-            room.status(),
-            GameStatus::Won {
-                mark: "X".to_string()
-            }
-        );
+        set_board(&mut room, "XXXOOXOXO");
+        assert_eq!(room.status(), GameStatus::Won { mark: Mark::X });
     }
 
     #[test]
     fn status_draw_on_full_board_without_winner() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        set_board(
-            &mut room,
-            [["X", "O", "X"], ["X", "O", "O"], ["O", "X", "X"]],
-        );
+        set_board(&mut room, "XOXXOOOXX");
         assert_eq!(room.status(), GameStatus::Draw);
     }
 
@@ -280,7 +225,7 @@ mod tests {
     fn attach_swaps_sender() {
         let (mut room, mut rx_x_old, _rx_o) = full_room();
         let (tx_new, mut rx_new) = unbounded_channel();
-        room.attach("X", tx_new);
+        room.attach(Mark::X, tx_new);
         room.player_x.tx.send(ServerEvent::InvalidMove).unwrap();
         assert!(matches!(rx_new.try_recv(), Ok(ServerEvent::InvalidMove)));
         assert!(rx_x_old.try_recv().is_err());
@@ -289,8 +234,8 @@ mod tests {
     #[test]
     fn set_name_updates_right_player() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        room.set_name("X", "Xena".to_string());
-        room.set_name("O", "Omar".to_string());
+        room.set_name(Mark::X, "Xena".to_string());
+        room.set_name(Mark::O, "Omar".to_string());
         assert_eq!(room.player_x.name.as_deref(), Some("Xena"));
         assert_eq!(
             room.player_o.as_ref().unwrap().name.as_deref(),
@@ -301,7 +246,7 @@ mod tests {
     #[test]
     fn snapshot_contains_board_turn_status_and_names() {
         let (mut room, _rx_x, _rx_o) = full_room();
-        room.apply_move("X", 1, 1).unwrap();
+        room.apply_move(Mark::X, 4).unwrap();
         match room.snapshot() {
             ServerEvent::GameState {
                 board,
@@ -310,7 +255,7 @@ mod tests {
                 player_x_name,
                 player_o_name,
             } => {
-                assert_eq!(board[1][1], "X");
+                assert_eq!(board[4], Some(Mark::X));
                 assert!(!is_x_turn);
                 assert_eq!(status, GameStatus::InProgress);
                 assert_eq!(player_x_name.as_deref(), Some("Ana"));
